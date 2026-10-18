@@ -43,7 +43,7 @@ async function request<T>(path: string, body?: unknown, timeoutMs = 60000): Prom
     const err = e as Error
     if (err.name === 'AbortError') throw new Error('That took too long. Check your connection and try again.')
     if (/network request failed|failed to fetch/i.test(err.message)) {
-      throw new Error("Can't reach your Journable server. Make sure it is running and your phone is on the same Wi-Fi (see Goals → Server).")
+      throw new Error("Can't reach your Munch server. Check the address in Settings → Server and your connection.")
     }
     throw err
   } finally {

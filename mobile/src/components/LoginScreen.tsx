@@ -46,7 +46,7 @@ export function LoginScreen() {
           <Ionicons name="sparkles" size={32} color="#fff" />
         </LinearGradient>
         <T variant="largeTitle" style={{ textAlign: 'center' }}>
-          Welcome to Journable
+          Welcome to Munch
         </T>
         <T variant="body" muted style={{ textAlign: 'center', maxWidth: 320 }}>
           Sign in to sync your log across devices and keep your AI features private to you.

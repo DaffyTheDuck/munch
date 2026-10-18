@@ -34,7 +34,7 @@ export default function LoginScreen() {
     <div className="login">
       <div className="login-card">
         <Logo size={64} />
-        <h1>Welcome to Journable</h1>
+        <h1>Welcome to Munch</h1>
         <p className="muted">Sign in to sync your log across devices and keep your AI features private to you.</p>
 
         <ul className="login-points">

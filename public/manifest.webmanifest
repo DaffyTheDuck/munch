@@ -1,6 +1,6 @@
 {
-  "name": "Journable",
-  "short_name": "Journable",
+  "name": "Munch",
+  "short_name": "Munch",
   "description": "AI calorie and macro tracker",
   "start_url": "/",
   "display": "standalone",

@@ -50,7 +50,7 @@ export default function App() {
         <aside className="side">
           <div className="brand">
             <Logo size={36} />
-            <span className="brand-name">Journable</span>
+            <span className="brand-name">Munch</span>
           </div>
           <nav>
             {TABS.map((t) => (

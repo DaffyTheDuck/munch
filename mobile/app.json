@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Journable",
+    "name": "Munch",
     "slug": "journable-local",
     "scheme": "journable",
     "version": "1.0.0",
@@ -43,8 +43,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Journable uses your photos so the AI can estimate what you ate.",
-          "cameraPermission": "Journable uses the camera so the AI can estimate what you ate."
+          "photosPermission": "Munch uses your photos so the AI can estimate what you ate.",
+          "cameraPermission": "Munch uses the camera so the AI can estimate what you ate."
         }
       ],
       [

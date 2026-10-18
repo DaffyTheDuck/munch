@@ -265,7 +265,7 @@ export default function SettingsScreen() {
         <Section icon="server-outline" title="SERVER">
           <Card style={{ gap: 12 }}>
             <T variant="caption" muted>
-              The Journable server the app talks to. Currently: {urlNow || '…'}
+              The Munch server the app talks to. Currently: {urlNow || '…'}
             </T>
             <Field label="Server address">
               <TextInput
@@ -315,7 +315,7 @@ export default function SettingsScreen() {
 
         <Section icon="information-circle-outline" title="ABOUT">
           <Card style={{ gap: 4 }}>
-            <T variant="headline">{Constants.expoConfig?.name ?? 'Journable'}</T>
+            <T variant="headline">{Constants.expoConfig?.name ?? 'Munch'}</T>
             <T variant="caption" muted>
               Version {Constants.expoConfig?.version ?? '1.0.0'} · Your entries are stored on this phone{configured ? ' and synced to your account' : ''}.
             </T>

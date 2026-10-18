@@ -1,7 +1,7 @@
 // Brand mark: a calorie ring with a sparkle (AI) at its centre. Mirrors public/favicon.svg.
 export default function Logo({ size = 36 }: { size?: number }) {
   return (
-    <svg className="logo-mark" width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="Journable">
+    <svg className="logo-mark" width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="Munch">
       <defs>
         <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#7c4dee" />
