@@ -1,0 +1,7 @@
+export { CATALOG, allowsDiet } from './catalog'
+export { recommendPlan, isAllowed, historyToFoods, WEIGHTS } from './engine'
+export { buildHistory } from './history'
+export { nutrientTips, FIBER_PER_1000_KCAL } from './rules'
+export { solve, snapAndPolish, cost } from './solver'
+export { PRIOR, meanOf, rng, sampleBeta, updateTaste, type Beta, type Feedback, type Taste } from './taste'
+export type { Food, HistoryFood, RecommendInput, RecommendOutput, RecommendedItem, Role } from './types'

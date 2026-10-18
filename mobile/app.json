@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "Journable",
+    "slug": "journable-local",
+    "scheme": "journable",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mihir.journablelocal"
+    },
+    "android": {
+      "package": "com.mihir.journablelocal",
+      "adaptiveIcon": {
+        "backgroundImage": "./assets/android-icon-background.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#f6f6fa",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#09090c"
+          }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Journable uses your photos so the AI can estimate what you ate.",
+          "cameraPermission": "Journable uses the camera so the AI can estimate what you ate."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
+      "expo-status-bar"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e8e73aea-67af-495d-98ad-cf0b746ea3c1"
+      }
+    },
+    "owner": "mihir.b"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBps5CuOqS3S1U1XDjAIZkmH0yy12llTHA",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "journable-e39e5.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "journable-e39e5",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:122092603229:web:d8603745f500253b578ab4",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "122092603229-gc8vkq5ti607pjfdm908qsbvfhgju2lr.apps.googleusercontent.com"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBps5CuOqS3S1U1XDjAIZkmH0yy12llTHA",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "journable-e39e5.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "journable-e39e5",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:122092603229:web:d8603745f500253b578ab4",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "122092603229-gc8vkq5ti607pjfdm908qsbvfhgju2lr.apps.googleusercontent.com"
+      }
+    },
+    "production": {}
+  }
+}

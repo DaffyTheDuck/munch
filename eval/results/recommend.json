@@ -1,0 +1,129 @@
+{
+  "generated": "2026-10-17",
+  "catalogSize": 146,
+  "overall": {
+    "scenarios": 600,
+    "unfilledPct": 0,
+    "kcalMeanErrPct": 0.7,
+    "kcalP95ErrPct": 1.83,
+    "kcalWithin5Pct": 100,
+    "kcalWithin10Pct": 100,
+    "proteinMeanErrPct": 2.3,
+    "carbsMeanErrPct": 2,
+    "fatMeanErrPct": 2.9,
+    "ruleViolations": 0,
+    "plansWithRepeatedDishPct": 0,
+    "latencyMeanMs": 18,
+    "latencyP95Ms": 28.7
+  },
+  "byDiet": {
+    "vegetarian": {
+      "scenarios": 94,
+      "unfilledPct": 0,
+      "kcalMeanErrPct": 0.58,
+      "kcalP95ErrPct": 1.48,
+      "kcalWithin5Pct": 100,
+      "kcalWithin10Pct": 100,
+      "proteinMeanErrPct": 2.6,
+      "carbsMeanErrPct": 2,
+      "fatMeanErrPct": 3,
+      "ruleViolations": 0,
+      "plansWithRepeatedDishPct": 0,
+      "latencyMeanMs": 20.2,
+      "latencyP95Ms": 29.2
+    },
+    "eggetarian": {
+      "scenarios": 113,
+      "unfilledPct": 0,
+      "kcalMeanErrPct": 0.64,
+      "kcalP95ErrPct": 1.77,
+      "kcalWithin5Pct": 100,
+      "kcalWithin10Pct": 100,
+      "proteinMeanErrPct": 3.1,
+      "carbsMeanErrPct": 1.9,
+      "fatMeanErrPct": 3.1,
+      "ruleViolations": 0,
+      "plansWithRepeatedDishPct": 0,
+      "latencyMeanMs": 18.2,
+      "latencyP95Ms": 27.6
+    },
+    "vegan": {
+      "scenarios": 96,
+      "unfilledPct": 0,
+      "kcalMeanErrPct": 0.84,
+      "kcalP95ErrPct": 2.33,
+      "kcalWithin5Pct": 100,
+      "kcalWithin10Pct": 100,
+      "proteinMeanErrPct": 2.6,
+      "carbsMeanErrPct": 2.9,
+      "fatMeanErrPct": 3.2,
+      "ruleViolations": 0,
+      "plansWithRepeatedDishPct": 0,
+      "latencyMeanMs": 15.8,
+      "latencyP95Ms": 25.6
+    },
+    "jain": {
+      "scenarios": 87,
+      "unfilledPct": 0,
+      "kcalMeanErrPct": 0.71,
+      "kcalP95ErrPct": 1.67,
+      "kcalWithin5Pct": 100,
+      "kcalWithin10Pct": 100,
+      "proteinMeanErrPct": 1.9,
+      "carbsMeanErrPct": 1.9,
+      "fatMeanErrPct": 2.9,
+      "ruleViolations": 0,
+      "plansWithRepeatedDishPct": 0,
+      "latencyMeanMs": 13.6,
+      "latencyP95Ms": 20.1
+    },
+    "pescatarian": {
+      "scenarios": 109,
+      "unfilledPct": 0,
+      "kcalMeanErrPct": 0.67,
+      "kcalP95ErrPct": 1.83,
+      "kcalWithin5Pct": 100,
+      "kcalWithin10Pct": 100,
+      "proteinMeanErrPct": 1.9,
+      "carbsMeanErrPct": 1.5,
+      "fatMeanErrPct": 2.9,
+      "ruleViolations": 0,
+      "plansWithRepeatedDishPct": 0,
+      "latencyMeanMs": 18.9,
+      "latencyP95Ms": 28.9
+    },
+    "nonveg": {
+      "scenarios": 101,
+      "unfilledPct": 0,
+      "kcalMeanErrPct": 0.76,
+      "kcalP95ErrPct": 1.66,
+      "kcalWithin5Pct": 100,
+      "kcalWithin10Pct": 100,
+      "proteinMeanErrPct": 1.6,
+      "carbsMeanErrPct": 1.8,
+      "fatMeanErrPct": 2.3,
+      "ruleViolations": 0,
+      "plansWithRepeatedDishPct": 0,
+      "latencyMeanMs": 20.4,
+      "latencyP95Ms": 30.5
+    }
+  },
+  "variety": {
+    "days": 14,
+    "distinctFoods": 51,
+    "mostRepeated": [
+      [
+        "milk",
+        10
+      ],
+      [
+        "paratha",
+        8
+      ],
+      [
+        "soya-chunk-curry",
+        8
+      ]
+    ]
+  }
+}

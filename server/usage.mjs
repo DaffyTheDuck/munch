@@ -1,0 +1,173 @@
+// Daily AI-action limits.
+//
+// Every request that calls a language model costs "AI actions". Each signed-in person gets a daily allowance
+// (DAILY_AI_LIMIT, default 40; 0 = unlimited), and an optional global cap (GLOBAL_DAILY_AI_LIMIT, default off)
+// can switch AI off for everyone when a daily budget is spent. The day rolls over at midnight in QUOTA_TIMEZONE
+// (default UTC). Counts are kept in memory and mirrored to a small JSON file so a restart does not reset them.
+//
+// Costs: logging a meal = 1, a meal plan = 2, a new coach question = 2 (its tool follow-ups cost 0), classic coach step = 1.
+// Foods resolved on the device (history / catalog) and the on-device recommendation engine cost nothing.
+import fs from 'node:fs'
+import path from 'node:path'
+
+export const GLOBAL_KEY = '*'
+
+export function dayKey(now = new Date(), tz = 'UTC') {
+  return now.toLocaleDateString('en-CA', { timeZone: tz }) // YYYY-MM-DD in that time zone
+}
+
+/** The next moment the day key changes (to the minute). */
+export function nextReset(now = new Date(), tz = 'UTC') {
+  const today = dayKey(now, tz)
+  const t = new Date(now)
+  t.setSeconds(0, 0)
+  for (let i = 0; i < 60 * 26; i++) {
+    t.setMinutes(t.getMinutes() + 1)
+    if (dayKey(t, tz) !== today) return t
+  }
+  return new Date(now.getTime() + 24 * 3600 * 1000)
+}
+
+export class UsageStore {
+  constructor({ file = null, now = () => new Date(), tz = 'UTC' } = {}) {
+    this.file = file
+    this.now = now
+    this.tz = tz
+    this.data = { day: dayKey(now(), tz), counts: {} }
+    this.timer = null
+    if (file) this.load()
+  }
+
+  load() {
+    try {
+      const raw = JSON.parse(fs.readFileSync(this.file, 'utf8'))
+      if (raw?.day === this.data.day && raw.counts && typeof raw.counts === 'object') this.data = raw
+    } catch {
+      /* no file yet, or unreadable: start fresh */
+    }
+  }
+
+  save() {
+    if (!this.file || this.timer) return
+    this.timer = setTimeout(() => {
+      this.timer = null
+      try {
+        fs.mkdirSync(path.dirname(this.file), { recursive: true })
+        fs.writeFileSync(this.file, JSON.stringify(this.data))
+      } catch {
+        /* a failed write only loses persistence, never blocks a request */
+      }
+    }, 300)
+    this.timer.unref?.()
+  }
+
+  /** Starts a new day's counts when the date has changed. */
+  roll() {
+    const today = dayKey(this.now(), this.tz)
+    if (this.data.day !== today) this.data = { day: today, counts: {} }
+  }
+
+  used(key) {
+    this.roll()
+    return this.data.counts[key] ?? 0
+  }
+
+  /**
+   * Try to spend `cost` actions. `perUser` and `global` are limits (0 = unlimited).
+   * Returns { ok, reason?, used, limit, remaining }. Nothing is spent when it is refused.
+   */
+  consume(uid, cost, { perUser = 0, global = 0 } = {}) {
+    this.roll()
+    const mine = this.used(uid)
+    const all = this.used(GLOBAL_KEY)
+    if (global > 0 && all + cost > global) return { ok: false, reason: 'global', used: mine, limit: perUser, remaining: Math.max(0, perUser - mine) }
+    if (perUser > 0 && mine + cost > perUser) return { ok: false, reason: 'user', used: mine, limit: perUser, remaining: Math.max(0, perUser - mine) }
+    this.data.counts[uid] = mine + cost
+    this.data.counts[GLOBAL_KEY] = all + cost
+    this.save()
+    return { ok: true, used: mine + cost, limit: perUser, remaining: perUser > 0 ? perUser - mine - cost : null }
+  }
+
+  refund(uid, cost) {
+    this.roll()
+    this.data.counts[uid] = Math.max(0, this.used(uid) - cost)
+    this.data.counts[GLOBAL_KEY] = Math.max(0, this.used(GLOBAL_KEY) - cost)
+    this.save()
+  }
+
+  resetAt() {
+    return nextReset(this.now(), this.tz)
+  }
+}
+
+// ---------------------------------------------------------------- configuration and middleware
+
+const num = (v, d) => (v === undefined || v === '' || !Number.isFinite(Number(v)) ? d : Number(v))
+
+export function limitsFor(user) {
+  const unlimited = (process.env.UNLIMITED_EMAILS || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+  return {
+    perUser: user?.email && unlimited.includes(user.email) ? 0 : num(process.env.DAILY_AI_LIMIT, 40),
+    global: num(process.env.GLOBAL_DAILY_AI_LIMIT, 0),
+  }
+}
+
+let shared = null
+export function defaultStore() {
+  return (shared ??= new UsageStore({ file: process.env.USAGE_FILE || 'server/.data/usage.json', tz: process.env.QUOTA_TIMEZONE || 'UTC' }))
+}
+
+const human = (d, tz) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz })
+
+/** Express middleware: spend `cost` AI actions for the signed-in user, or refuse with a clear message. */
+export function meterAI(cost, store = null) {
+  return (req, res, next) => {
+    const s = store ?? defaultStore()
+    if (!cost || !req.user) return next() // free actions, and open (unauthenticated) local mode, are not metered
+    const lim = limitsFor(req.user)
+    const r = s.consume(req.user.uid, cost, lim)
+    const reset = s.resetAt()
+    if (lim.perUser > 0) {
+      res.set('X-AI-Limit', String(lim.perUser))
+      res.set('X-AI-Used', String(r.ok ? r.used : s.used(req.user.uid)))
+    }
+    if (!r.ok) {
+      const paused = r.reason === 'global'
+      return res.status(paused ? 503 : 429).json({
+        error: paused
+          ? 'AI is paused for today to keep costs under control. Foods you have logged before and meal plans still work, and AI returns tomorrow.'
+          : `You have used all ${lim.perUser} AI actions for today. Foods you have logged before and meal plans still work, and your allowance resets at ${human(reset, s.tz)}.`,
+        code: paused ? 'ai_paused' : 'daily_limit',
+        used: r.used,
+        limit: lim.perUser,
+        resetAt: reset.toISOString(),
+      })
+    }
+    // a request that fails on our side should not use up the allowance
+    res.on('finish', () => {
+      if (res.statusCode >= 500) s.refund(req.user.uid, cost)
+    })
+    next()
+  }
+}
+
+/** Handler for GET /api/usage */
+export function usageHandler(store = null) {
+  return (req, res) => {
+    const s = store ?? defaultStore()
+    if (!req.user) return res.json({ enabled: false })
+    const lim = limitsFor(req.user)
+    const used = s.used(req.user.uid)
+    res.json({
+      enabled: true,
+      unlimited: lim.perUser === 0,
+      used,
+      limit: lim.perUser,
+      remaining: lim.perUser > 0 ? Math.max(0, lim.perUser - used) : null,
+      resetAt: s.resetAt().toISOString(),
+    })
+  }
+}

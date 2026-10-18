@@ -1,0 +1,43 @@
+{
+  "name": "journable-local",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,yellow \"vite\" \"node --env-file=.env server/index.mjs\"",
+    "build": "tsc && vite build",
+    "start:api": "node --env-file=.env server/index.mjs",
+    "test": "vitest run",
+    "eval": "node --env-file=.env eval/run.mjs",
+    "mobile": "cd mobile && npx expo start --go",
+    "mobile:clear": "cd mobile && npx expo start --go -c",
+    "mobile:lite": "cd mobile && npx expo start --go --max-workers 2",
+    "mobile:dev": "cd mobile && npx expo start --dev-client"
+  },
+  "dependencies": {
+    "@langchain/anthropic": "^1.5.12",
+    "@langchain/core": "^1.2.18",
+    "@langchain/google-genai": "^2.3.2",
+    "@langchain/groq": "^1.3.1",
+    "@langchain/langgraph": "^1.5.1",
+    "dexie": "^4.0.8",
+    "dexie-react-hooks": "^1.1.7",
+    "express": "^4.21.0",
+    "firebase": "^13.0.0",
+    "jose": "^6.2.12",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^9.0.0",
+    "fake-indexeddb": "^6.2.6",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.3",
+    "vitest": "^2.1.9"
+  }
+}
