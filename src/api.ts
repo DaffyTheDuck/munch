@@ -1,6 +1,7 @@
 import type { AiResult } from './types'
 import type { PlanRequestBody, PlanResponse } from '../shared/diet'
 import { authHeader } from './lib/token'
+import { aiHeaders } from './lib/aikey'
 
 async function post<T>(url: string, body: unknown): Promise<T> {
   const ctrl = new AbortController()
@@ -8,7 +9,7 @@ async function post<T>(url: string, body: unknown): Promise<T> {
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()), ...aiHeaders() },
       body: JSON.stringify(body),
       signal: ctrl.signal,
     })
@@ -67,12 +68,13 @@ export interface Usage {
   limit?: number
   remaining?: number | null
   resetAt?: string
+  ownKey?: boolean
 }
 
 /** How many AI actions you have used today (only when the server meters them). */
 export async function fetchUsage(): Promise<Usage> {
   try {
-    const res = await fetch('/api/usage', { headers: await authHeader() })
+    const res = await fetch('/api/usage', { headers: { ...(await authHeader()), ...aiHeaders() } })
     return res.ok ? ((await res.json()) as Usage) : { enabled: false }
   } catch {
     return { enabled: false }
@@ -80,3 +82,16 @@ export async function fetchUsage(): Promise<Usage> {
 }
 
 export const requestPlan = (body: PlanRequestBody) => post<PlanResponse>('/api/plan', body)
+
+/** Tests the key saved in this browser with a tiny request (their key and quota, not ours). */
+export const checkOwnKey = () => post<{ ok: boolean; provider: string }>('/api/key/check', {})
+
+export interface Recipe {
+  title: string
+  servings: number
+  timeMinutes: number
+  ingredients: { item: string; amount: string }[]
+  steps: string[]
+  tip: string
+}
+export const fetchRecipe = (body: { name: string; quantity?: string; diet?: string; allergies?: string[] }) => post<{ recipe: Recipe; videoUrl: string }>('/api/recipe', body)

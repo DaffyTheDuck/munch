@@ -4,7 +4,15 @@
 // Order: AI_PROVIDER first, then each name in AI_FALLBACKS (comma separated).
 // Providers without an API key are skipped. Any failure moves on to the next one.
 
+import { AsyncLocalStorage } from 'node:async_hooks'
+
 const TIMEOUT_MS = 45000
+
+// A person can bring their own API key. It lives only in this request's async context (never in process.env,
+// never logged, never stored) and, when present, is the ONLY key used: we never fall back to the server's keys.
+const keyContext = new AsyncLocalStorage()
+export const runWithUserKey = (ctx, fn) => keyContext.run(ctx, fn)
+export const userKeyActive = () => Boolean(keyContext.getStore())
 
 const KEY_ENV = { gemini: 'GEMINI_API_KEY', anthropic: 'ANTHROPIC_API_KEY', groq: 'GROQ_API_KEY' }
 
@@ -18,9 +26,27 @@ export function modelFor(provider, { vision = false } = {}) {
   return process.env.GEMINI_MODEL || 'gemini-3.5-flash'
 }
 
-export const hasKey = (provider) => Boolean(process.env[KEY_ENV[provider]])
+export function keyFor(provider) {
+  const own = keyContext.getStore()
+  if (own) return own.provider === provider ? own.key : ''
+  return process.env[KEY_ENV[provider]] || ''
+}
+
+/** Masks anything that looks like an API key (and the active own key) so provider error text can be logged safely. */
+export function redact(text) {
+  let out = String(text ?? '')
+  const own = keyContext.getStore()?.key
+  if (own) out = out.split(own).join('[key]')
+  return out.replace(/AIza[w-]{16,}|gsk_[w-]{16,}|sk-ant-[w-]{16,}|sk-[w-]{20,}/g, '[key]')
+}
+
+const upstream = (message, status) => Object.assign(new Error(message), { upstreamStatus: status })
+
+export const hasKey = (provider) => Boolean(keyFor(provider))
 
 export function providerChain(override) {
+  const own = keyContext.getStore()
+  if (own) return [own.provider]
   if (override) return [override.toLowerCase()]
   const primary = (process.env.AI_PROVIDER || 'gemini').toLowerCase()
   const extra = (process.env.AI_FALLBACKS || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
@@ -39,7 +65,7 @@ function splitDataUrl(dataUrl) {
   return { mime: m[1], data: m[2] }
 }
 
-async function gemini({ system, messages, json, model }) {
+async function gemini({ system, messages, json, model, maxTokens }) {
   const contents = messages.map((m) => {
     const parts = []
     if (m.image) {
@@ -51,16 +77,16 @@ async function gemini({ system, messages, json, model }) {
   })
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': keyFor('gemini') },
     body: JSON.stringify({
       system_instruction: { parts: [{ text: system }] },
       contents,
-      generationConfig: { ...(json ? { responseMimeType: 'application/json' } : {}), temperature: 0.2 },
+      generationConfig: { ...(json ? { responseMimeType: 'application/json' } : {}), temperature: 0.2, maxOutputTokens: geminiCap(maxTokens) },
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
   const body = await res.json()
-  if (!res.ok) throw new Error(body?.error?.message || `Gemini error ${res.status}`)
+  if (!res.ok) throw upstream(body?.error?.message || `Gemini error ${res.status}`, res.status)
   const text = body?.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('')
   if (!text) throw new Error('Empty response from Gemini')
   return text
@@ -78,12 +104,12 @@ async function anthropic({ system, messages, model, maxTokens }) {
   })
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': keyFor('anthropic'), 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: mapped }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
   const body = await res.json()
-  if (!res.ok) throw new Error(body?.error?.message || `Anthropic error ${res.status}`)
+  if (!res.ok) throw upstream(body?.error?.message || `Anthropic error ${res.status}`, res.status)
   const text = body?.content?.map((c) => c.text || '').join('')
   if (!text) throw new Error('Empty response from Anthropic')
   return text
@@ -98,7 +124,7 @@ async function groq({ system, messages, json, model, maxTokens }) {
   })
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${keyFor('groq')}` },
     body: JSON.stringify({
       model,
       messages: [{ role: 'system', content: system }, ...mapped],
@@ -109,7 +135,7 @@ async function groq({ system, messages, json, model, maxTokens }) {
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
   const body = await res.json()
-  if (!res.ok) throw new Error(body?.error?.message || `Groq error ${res.status}`)
+  if (!res.ok) throw upstream(body?.error?.message || `Groq error ${res.status}`, res.status)
   const text = body?.choices?.[0]?.message?.content
   if (!text) throw new Error('Empty response from Groq')
   return text
@@ -140,10 +166,15 @@ export async function generate({ system, messages, json = true, maxTokens = 1500
       return { text, ms: Date.now() - started, provider, model, fellBackFrom: failures.map((f) => f.provider) }
     } catch (e) {
       const reason = e.name === 'TimeoutError' ? 'timed out' : e.message
-      failures.push({ provider, reason })
-      console.warn(`${provider} failed: ${String(reason).slice(0, 140)}`)
+      failures.push({ provider, reason, status: e.upstreamStatus })
+      console.warn(`${provider} failed: ${redact(reason).slice(0, 140)}`)
     }
   }
-  const summary = failures.map((f) => `${f.provider}: ${String(f.reason).slice(0, 120)}`).join(' | ')
-  throw new Error(failures.length === 1 ? failures[0].reason : `All AI providers failed. ${summary}`)
+  const summary = failures.map((f) => `${f.provider}: ${redact(f.reason).slice(0, 120)}`).join(' | ')
+  const last = failures.at(-1)
+  throw upstream(failures.length === 1 ? redact(failures[0].reason) : `All AI providers failed. ${summary}`, last?.status)
 }
+
+// Gemini's hidden "thinking" tokens count against its output limit, so a tight cap truncates the JSON mid-answer.
+// Keep a ceiling (cost control) but leave room for thinking.
+export const geminiCap = (maxTokens) => Math.max(maxTokens * 4, 6000)

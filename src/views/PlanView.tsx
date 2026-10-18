@@ -8,6 +8,7 @@ import { MEALS, addDays, longDate, prettyDate, todayStr } from '../util'
 import type { Meal } from '../types'
 import Icon from '../components/Icon'
 import DietEditor from '../components/DietEditor'
+import RecipeButtons from '../components/RecipeButtons'
 import { useToast } from '../components/Toast'
 
 const MEAL_COLOR: Record<string, string> = { breakfast: '#f59e0b', lunch: '#38bdf8', snack: '#f472b6', dinner: '#a78bfa' }
@@ -390,6 +391,7 @@ export default function PlanView({ date }: { date: string }) {
                       <b>{it.name}</b>
                       <span className="muted small-text">{it.quantity}</span>
                       {it.reasons && it.reasons.length > 0 && <span className="why small-text">{it.reasons.join(' · ')}</span>}
+                      <RecipeButtons name={it.name} quantity={it.quantity} diet={todaysDiet} allergies={diet.allergies} />
                     </div>
                     <div className="plan-item-nums">
                       <b>{it.calories}</b>

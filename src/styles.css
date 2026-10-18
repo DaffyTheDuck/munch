@@ -686,3 +686,16 @@ body::before {
 /* ---------- AI usage ---------- */
 .usage-chip { display: inline-flex; align-items: center; gap: 5px; margin-left: 10px; padding: 2px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; font-size: 11px; font-variant-numeric: tabular-nums; }
 .usage-chip.low { background: color-mix(in srgb, var(--carbs) 18%, var(--card)); color: var(--carbs); }
+
+/* own API key + recipes */
+.ai-key { display: grid; gap: 10px; margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--line); }
+.ai-key h4 { margin: 0; font-size: 15px; }
+.ai-key-actions { display: flex; gap: 8px; }
+.key-ok { color: var(--good, #12a37a); }
+.key-bad { color: var(--over); }
+.recipe { display: grid; gap: 8px; margin-top: 6px; }
+.recipe-actions { display: flex; gap: 8px; }
+.chip.small { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; font-size: 12px; text-decoration: none; color: inherit; }
+.recipe-body { display: grid; gap: 4px; padding: 12px; border-radius: 12px; background: var(--card-2); font-size: 13px; line-height: 1.45; }
+.recipe-body ul, .recipe-body ol { margin: 0 0 4px; padding-left: 18px; }
+.bad-text { color: var(--over); }

@@ -108,11 +108,15 @@ const TZ_REGION: Record<string, string> = {
   'Africa/Lagos': 'NG', 'Africa/Johannesburg': 'ZA', 'Africa/Nairobi': 'KE', 'Africa/Accra': 'GH', 'Africa/Cairo': 'EG', 'Australia/Sydney': 'AU', 'Australia/Melbourne': 'AU', 'Pacific/Auckland': 'NZ',
 }
 
-/** Best guess at the user's country (ISO code) from the device locale, falling back to the time zone. No permission needed. */
+/**
+ * Best guess at the user's country (ISO code). The time zone comes first because it follows where the device
+ * really is, while the locale is often just "en-US" by default on devices outside the US. No permission needed.
+ */
 export function detectRegion(locale?: string, timeZone?: string): string {
-  const m = /[-_]([A-Za-z]{2})\b/.exec(locale ?? '')
-  if (m) return m[1].toUpperCase()
-  return (timeZone && TZ_REGION[timeZone]) || ''
+  const byZone = timeZone && TZ_REGION[timeZone]
+  if (byZone) return byZone
+  const m = /[-_]([A-Za-z]{2})(?![A-Za-z])/.exec(locale ?? '')
+  return m ? m[1].toUpperCase() : ''
 }
 
 /** Cuisines to suggest by default for a country. Empty when unknown. */

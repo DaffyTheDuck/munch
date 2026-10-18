@@ -3,6 +3,7 @@ import type { AiResult } from '@shared/types'
 import type { PlanRequestBody, PlanResponse } from '@shared/diet'
 import { getSetting } from './db'
 import { authHeader } from './token'
+import { aiHeaders } from './aikey'
 
 // The phone talks to the same API server as the web app. In development, the server is assumed to run
 // on the computer that is serving the app (same Wi-Fi), on port 8787. Override it in Goals → Server.
@@ -14,13 +15,24 @@ export async function serverUrl(): Promise<string> {
   return host ? `http://${host}:8787` : 'http://localhost:8787'
 }
 
+// The person's own API key is only ever sent over HTTPS, or over plain HTTP to a private-network address (home Wi-Fi).
+const privateHost = /^(localhost$|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/
+function safeForKey(url: string) {
+  if (url.startsWith('https://')) return true
+  const m = /^http:\/\/([^/:]+)/.exec(url)
+  return Boolean(m && privateHost.test(m[1]))
+}
+
 async function request<T>(path: string, body?: unknown, timeoutMs = 60000): Promise<T> {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), timeoutMs)
   try {
-    const res = await fetch(`${await serverUrl()}${path}`, {
+    const base = await serverUrl()
+    const extra = path === '/api/health' ? {} : await aiHeaders()
+    if (extra['X-AI-Key'] && !safeForKey(base)) throw new Error('Your API key is only sent over HTTPS. Use an https:// server address, or remove the key in Settings.')
+    const res = await fetch(`${base}${path}`, {
       method: body === undefined ? 'GET' : 'POST',
-      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()), ...extra },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: ctrl.signal,
     })
@@ -82,6 +94,7 @@ export interface Usage {
   limit?: number
   remaining?: number | null
   resetAt?: string
+  ownKey?: boolean
 }
 
 /** How many AI actions you have used today (only when the server meters them). */
@@ -92,3 +105,17 @@ export async function fetchUsage(): Promise<Usage> {
     return { enabled: false }
   }
 }
+
+/** Tests the key saved on this device with a tiny request (it uses their key and quota, not ours). */
+export const checkOwnKey = () => request<{ ok: boolean; provider: string }>('/api/key/check', {}, 20000)
+
+export interface Recipe {
+  title: string
+  servings: number
+  timeMinutes: number
+  ingredients: { item: string; amount: string }[]
+  steps: string[]
+  tip: string
+}
+export const fetchRecipe = (body: { name: string; quantity?: string; diet?: string; allergies?: string[] }) =>
+  request<{ recipe: Recipe; videoUrl: string }>('/api/recipe', body, 60000)

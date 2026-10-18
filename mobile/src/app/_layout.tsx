@@ -11,6 +11,7 @@ import { ToastProvider } from '@/components/Toast'
 import { SessionProvider, useSession } from '@/lib/session'
 import { LoginScreen } from '@/components/LoginScreen'
 import { View } from 'react-native'
+import { applyTheme, loadTheme } from '@/lib/themePref'
 
 SplashScreen.preventAutoHideAsync()
 void getDb() // open the database early so the first screen has data quickly
@@ -42,6 +43,10 @@ function Gate() {
 export default function RootLayout() {
   const t = useTheme()
   const [loaded, error] = useFonts({ DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold })
+
+  useEffect(() => {
+    void loadTheme().then(applyTheme) // the light/dark choice from Settings
+  }, [])
 
   useEffect(() => {
     if (loaded || error) void SplashScreen.hideAsync()

@@ -6,15 +6,15 @@ import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatGroq } from '@langchain/groq'
 import { ChatAnthropic } from '@langchain/anthropic'
-import { hasKey, modelFor, providerChain } from './llm.mjs'
+import { geminiCap, hasKey, keyFor, modelFor, providerChain, redact } from './llm.mjs'
 
 const TIMEOUT_MS = 45000
 
 export function makeChatModel(provider, { vision = false, maxTokens = 1500, temperature = 0.2 } = {}) {
   const model = modelFor(provider, { vision })
-  if (provider === 'anthropic') return new ChatAnthropic({ model, apiKey: process.env.ANTHROPIC_API_KEY, temperature, maxTokens })
-  if (provider === 'groq') return new ChatGroq({ model, apiKey: process.env.GROQ_API_KEY, temperature, maxTokens })
-  return new ChatGoogleGenerativeAI({ model, apiKey: process.env.GEMINI_API_KEY, temperature, maxOutputTokens: maxTokens })
+  if (provider === 'anthropic') return new ChatAnthropic({ model, apiKey: keyFor('anthropic'), temperature, maxTokens })
+  if (provider === 'groq') return new ChatGroq({ model, apiKey: keyFor('groq'), temperature, maxTokens })
+  return new ChatGoogleGenerativeAI({ model, apiKey: keyFor('gemini'), temperature, maxOutputTokens: geminiCap(maxTokens) })
 }
 
 export function toLangChainMessages(system, messages) {
@@ -40,8 +40,8 @@ function tracked(provider, model, trace) {
       trace.ms = Date.now() - started
       return r
     } catch (e) {
-      trace.failed.push({ provider, reason: e.name === 'TimeoutError' ? 'timed out' : e.message })
-      console.warn(`${provider} failed: ${String(e.message).slice(0, 140)}`)
+      trace.failed.push({ provider, reason: e.name === 'TimeoutError' ? 'timed out' : redact(e.message), status: e.status })
+      console.warn(`${provider} failed: ${redact(e.message).slice(0, 140)}`)
       throw e
     }
   })

@@ -79,7 +79,22 @@ export function buildCoachGraph(checkpointer = new MemorySaver()) {
     .compile({ checkpointer })
 }
 
-const graph = buildCoachGraph()
+const checkpointer = new MemorySaver()
+const graph = buildCoachGraph(checkpointer)
+
+// Conversations live in memory, so bound them: a limited number overall, each of limited length.
+const MAX_THREADS = 400
+const MAX_MESSAGES = 40
+const seen = new Map() // thread id -> last used (insertion order = oldest first)
+function touch(thread) {
+  seen.delete(thread)
+  seen.set(thread, Date.now())
+  while (seen.size > MAX_THREADS) {
+    const oldest = seen.keys().next().value
+    seen.delete(oldest)
+    void checkpointer.deleteThread?.(oldest)
+  }
+}
 
 function shape(result) {
   const pending = result.__interrupt__?.[0]?.value
@@ -94,9 +109,13 @@ export async function coachChat({ thread, message, today, goals }) {
   const config = cfg(thread, today, goals)
   const state = await graph.getState(config)
   if (state.next?.length) throw new Error('thread_busy') // an earlier question was never finished
+  if ((state.values?.messages?.length ?? 0) > MAX_MESSAGES) throw Object.assign(new Error('This conversation is getting long. Start a new chat.'), { status: 400, expose: true })
+  touch(String(thread))
   return shape(await graph.invoke({ messages: [new HumanMessage(message)], steps: 0 }, config))
 }
 
 export async function coachResume({ thread, results, today, goals }) {
+  const state = await graph.getState(cfg(thread, today, goals))
+  if (!state.next?.length) throw Object.assign(new Error('There is no question waiting for tool results.'), { status: 409, expose: true })
   return shape(await graph.invoke(new Command({ resume: results }), cfg(thread, today, goals)))
 }

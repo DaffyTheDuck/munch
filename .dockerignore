@@ -1,0 +1,10 @@
+node_modules
+mobile
+src
+tests
+eval
+dist
+.env
+.git
+public
+deploy

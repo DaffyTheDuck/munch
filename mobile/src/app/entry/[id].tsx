@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ScrollView, TextInput, View } from 'react-native'
+import { TextInput, View } from 'react-native'
+import { KeyboardScroll } from '@/components/KeyboardScroll'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { MEALS } from '@shared/dates'
@@ -118,7 +119,7 @@ export default function EditEntry() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.card }}>
-      <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 16 }}>
+      <KeyboardScroll keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <T variant="title">Edit {isFood ? 'food' : 'activity'}</T>
           <IconButton name="close" label="Close" onPress={() => router.back()} style={{ backgroundColor: t.card2, borderRadius: 22 }} />
@@ -178,7 +179,7 @@ export default function EditEntry() {
           <SecondaryButton title="Delete" icon="trash-outline" danger onPress={() => void remove()} />
           <PrimaryButton title="Save" onPress={() => void save()} style={{ flex: 1 }} />
         </View>
-      </ScrollView>
+      </KeyboardScroll>
     </View>
   )
 }

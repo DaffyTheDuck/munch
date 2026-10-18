@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { ScrollView, TextInput, View } from 'react-native'
+import { TextInput, View } from 'react-native'
+import { KeyboardScroll } from '@/components/KeyboardScroll'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Circle, Defs, G, Line, LinearGradient, Polygon, Polyline, Stop, Text as SvgText } from 'react-native-svg'
 import { addDays, todayStr } from '@shared/dates'
@@ -68,10 +69,9 @@ export default function Weight() {
   ]
 
   return (
-    <ScrollView
+    <KeyboardScroll
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="interactive"
-      automaticallyAdjustKeyboardInsets
       showsVerticalScrollIndicator={false}
       style={{ backgroundColor: t.bg }}
       contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 16, paddingBottom: 40, gap: 16 }}
@@ -204,6 +204,6 @@ export default function Weight() {
           ))}
         </Card>
       )}
-    </ScrollView>
+    </KeyboardScroll>
   )
 }

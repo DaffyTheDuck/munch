@@ -113,10 +113,14 @@ describe('allergies and dislikes', () => {
 })
 
 describe('region and cuisines', () => {
-  it('reads the country from the locale', () => {
-    expect(detectRegion('en-IN', 'America/New_York')).toBe('IN')
+  it('trusts the time zone over a default-looking locale', () => {
+    expect(detectRegion('en-US', 'Asia/Kolkata')).toBe('IN') // an Indian device that still says en-US
+    expect(detectRegion('en-IN', 'America/New_York')).toBe('US')
+  })
+  it('uses the locale country when the time zone is unknown', () => {
     expect(detectRegion('pt_BR')).toBe('BR')
     expect(detectRegion('en-US')).toBe('US')
+    expect(detectRegion('en-IN', 'Mars/Olympus')).toBe('IN')
   })
   it('falls back to the time zone when the locale has no country', () => {
     expect(detectRegion('en', 'Asia/Kolkata')).toBe('IN')

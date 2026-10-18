@@ -4,6 +4,7 @@
 //   ALLOWED_EMAILS     optional, comma separated. When set, only these Google accounts may use the API.
 //   RATE_LIMIT_PER_MIN optional, requests per user per minute (default 60).
 import { createRemoteJWKSet, jwtVerify } from 'jose'
+import { createWindowLimiter } from './security.mjs'
 
 const FIREBASE_JWKS = new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com')
 let remoteKeys
@@ -29,35 +30,23 @@ export async function verifyFirebaseToken(token, { projectId = process.env.FIREB
   return { uid: payload.sub, email: typeof payload.email === 'string' ? payload.email.toLowerCase() : '', emailVerified: payload.email_verified === true }
 }
 
-// Simple per-user sliding-window limiter (in memory; fine for a single small server).
-function createLimiter(limit, windowMs = 60000) {
-  const hits = new Map()
-  return (key, now = Date.now()) => {
-    const recent = (hits.get(key) || []).filter((t) => now - t < windowMs)
-    if (recent.length >= limit) {
-      hits.set(key, recent)
-      return false
-    }
-    recent.push(now)
-    hits.set(key, recent)
-    return true
-  }
-}
-
 /** Express middleware. Pass `keys` (a JWKS function) in tests to avoid network calls. */
 export function requireAuth({ keys } = {}) {
-  const limiter = createLimiter(Number(process.env.RATE_LIMIT_PER_MIN) || 60)
+  const limiter = createWindowLimiter(Number(process.env.RATE_LIMIT_PER_MIN) || 60)
+  const failures = createWindowLimiter(20, 10 * 60000) // repeated bad tokens from one address are shut out for a while
   return async (req, res, next) => {
     if (!authEnabled()) return next() // open mode, as before
 
     const header = req.headers.authorization || ''
     const token = header.startsWith('Bearer ') ? header.slice(7) : ''
     if (!token) return res.status(401).json({ error: 'Please sign in to use the AI features.' })
+    if (token.length > 4096) return res.status(401).json({ error: 'Invalid sign-in.' })
 
     let user
     try {
       user = await verifyFirebaseToken(token, { keys })
     } catch {
+      if (!failures(req.ip || 'unknown')) return res.status(429).json({ error: 'Too many failed sign-ins. Try again in a few minutes.' })
       return res.status(401).json({ error: 'Your sign-in has expired. Please sign in again.' })
     }
 

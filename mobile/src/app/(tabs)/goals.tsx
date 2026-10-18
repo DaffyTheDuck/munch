@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ScrollView, TextInput, View } from 'react-native'
+import { TextInput, View } from 'react-native'
+import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { addDays, todayStr } from '@shared/dates'
 import { ACTIVITY, PACES, buildPlan, type Profile } from '@shared/nutrition'
 import type { Goals } from '@shared/types'
 import { font, radius, useTheme } from '@/theme'
-import { DEFAULT_GOALS, deleteSetting, loadDiet, loadGoals, loadProfile, saveDiet, saveGoals, saveProfile, setSetting, useLive } from '@/lib/db'
-import { health, serverUrl, type Health } from '@/lib/api'
+import { DEFAULT_GOALS, loadDiet, loadGoals, loadProfile, saveDiet, saveGoals, saveProfile, useLive } from '@/lib/db'
 import { feel } from '@/lib/feel'
-import { Card, Chip, PrimaryButton, SecondaryButton, T } from '@/components/ui'
+import { Card, Chip, IconButton, PrimaryButton, T } from '@/components/ui'
+import { KeyboardScroll } from '@/components/KeyboardScroll'
 import { useToast } from '@/components/Toast'
-import { AccountCard } from '@/components/Account'
 import { DietEditor } from '@/components/DietEditor'
 import { summarizeDiet, DEFAULT_DIET } from '@shared/diet'
 
@@ -64,10 +64,6 @@ export default function GoalsScreen() {
   const [goals, setGoals] = useState<Goals>(DEFAULT_GOALS)
   const [saved, setSaved] = useState<Goals>(DEFAULT_GOALS)
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [url, setUrl] = useState('')
-  const [urlNow, setUrlNow] = useState('')
-  const [status, setStatus] = useState<Health | null>(null)
-  const [checking, setChecking] = useState(false)
 
   useEffect(() => {
     void loadGoals().then((g) => {
@@ -75,10 +71,6 @@ export default function GoalsScreen() {
       setSaved(g)
     })
     void loadProfile().then(setProfile)
-    void serverUrl().then((u) => {
-      setUrl(u)
-      setUrlNow(u)
-    })
   }, [])
 
   const plan = useMemo(() => (profile ? buildPlan(profile, goals.targetKg) : null), [profile, goals.targetKg])
@@ -108,35 +100,22 @@ export default function GoalsScreen() {
     toast('Goals saved')
   }
 
-  async function checkServer(next?: string) {
-    setChecking(true)
-    const target = (next ?? url).trim()
-    if (target) await setSetting('serverUrl', target.replace(/\/+$/, ''))
-    else await deleteSetting('serverUrl')
-    setUrlNow(await serverUrl())
-    const h = await health()
-    setStatus(h)
-    setChecking(false)
-    h.ok ? feel.success() : feel.error()
-  }
-
   return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
+    <KeyboardScroll
       keyboardDismissMode="interactive"
-      automaticallyAdjustKeyboardInsets
       showsVerticalScrollIndicator={false}
       style={{ backgroundColor: t.bg }}
       contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 16, paddingBottom: 48, gap: 16 }}
     >
-      <View style={{ gap: 4 }}>
-        <T variant="largeTitle">Goals</T>
-        <T variant="callout" muted>
-          Used for the daily ring and macro bars.
-        </T>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <View style={{ gap: 4, flex: 1 }}>
+          <T variant="largeTitle">Goals</T>
+          <T variant="callout" muted>
+            Daily targets and food preferences.
+          </T>
+        </View>
+        <IconButton name="settings-outline" label="Settings" haptic="select" onPress={() => router.push('/settings')} />
       </View>
-
-      <AccountCard />
 
       <Card style={{ gap: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -254,60 +233,6 @@ export default function GoalsScreen() {
         <PrimaryButton title="Save goals" disabled={!dirty} onPress={() => void saveTargets()} />
       </Card>
 
-      <Card style={{ gap: 12 }}>
-        <T variant="headline">Server</T>
-        <T variant="caption" muted>
-          The app talks to your Journable server (the same one the web app uses). Currently: {urlNow || '…'}
-        </T>
-        <View style={{ gap: 6 }}>
-          <T variant="caption" muted style={{ fontFamily: font.semibold }}>
-            Server address
-          </T>
-          <TextInput
-            value={url}
-            onChangeText={setUrl}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-            placeholder="http://192.168.1.20:8787"
-            placeholderTextColor={t.muted}
-            selectionColor={t.accent}
-            cursorColor={t.accent}
-            style={{ fontFamily: font.medium, fontSize: 15, color: t.text, minHeight: 48, paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: t.card2 }}
-          />
-        </View>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <PrimaryButton title={checking ? 'Checking…' : 'Save & test'} loading={checking} icon="pulse" onPress={() => void checkServer()} style={{ flex: 1 }} />
-          <SecondaryButton
-            title="Auto"
-            onPress={() => {
-              setUrl('')
-              void checkServer('')
-            }}
-          />
-        </View>
-        {status && (
-          <View style={{ gap: 4 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons name={status.ok ? 'checkmark-circle' : 'alert-circle'} size={18} color={status.ok ? t.good : t.over} />
-              <T variant="callout" color={status.ok ? 'good' : 'over'}>
-                {status.ok ? `Connected · ${status.provider}` : "Can't reach the server"}
-              </T>
-            </View>
-            {status.ok && (
-              <T variant="caption" muted>
-                Model layer: {status.llmLayer === 'langchain' ? 'LangChain' : 'native'} · Coach: {status.coachEngine === 'langgraph' ? 'LangGraph agent' : 'classic'}
-                {status.chain && status.chain.length > 1 ? ` · Fallback: ${status.chain.join(' → ')}` : ''}
-              </T>
-            )}
-            {!status.ok && (
-              <T variant="caption" muted>
-                Start the server on your computer (npm run dev), keep your phone on the same Wi-Fi, and allow Node through the Windows firewall if asked.
-              </T>
-            )}
-          </View>
-        )}
-      </Card>
-    </ScrollView>
+    </KeyboardScroll>
   )
 }

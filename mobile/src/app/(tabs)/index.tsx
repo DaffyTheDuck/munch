@@ -253,6 +253,7 @@ export default function Today() {
             </T>
           </Press>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <IconButton name="settings-outline" label="Settings" haptic="select" onPress={() => router.push('/settings')} />
             <IconButton name="chevron-back" label="Previous day" haptic="select" onPress={() => setDate(addDays(date, -1))} />
             <IconButton name="chevron-forward" label="Next day" haptic="select" disabled={isToday} onPress={() => setDate(addDays(date, 1))} />
           </View>

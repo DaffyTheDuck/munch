@@ -51,4 +51,4 @@ npx expo-doctor     # dependency and config health check
 2. `npm i -g eas-cli`, then `eas login`, `eas init`, `eas build --profile preview --platform android`.
 3. Open the build link on the phone, download and install the APK (allow "install unknown apps").
 4. For Google sign-in: `eas credentials` shows the SHA-1; add an Android app in Firebase (package `com.mihir.journablelocal`) with that SHA-1.
-5. Run the server on your computer (`npm run server`), then set Goals → Server to `http://<computer-ip>:8787` (same Wi-Fi, allow Node through the firewall).
+5. Run the server on your computer (`npm run start:api`), then set Goals → Server to `http://<computer-ip>:8787` (same Wi-Fi, allow Node through the firewall).

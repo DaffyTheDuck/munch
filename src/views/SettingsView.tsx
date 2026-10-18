@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, exportAll, importAll, loadDiet, loadGoals, loadProfile, saveDiet, saveGoals, saveProfile, useSettingsVersion } from '../db'
-import { aiStatus } from '../api'
+import { aiStatus, checkOwnKey, fetchUsage, type Usage } from '../api'
+import { PROVIDER_INFO, clearOwnKey, getOwnKey, maskKey, saveOwnKey, type OwnKey, type Provider } from '../lib/aikey'
 import { ACTIVITY, PACES, buildPlan, type Profile } from '../nutrition'
 import { addDays, todayStr } from '../util'
 import type { Goals } from '../types'
@@ -26,11 +27,45 @@ export default function SettingsView() {
   const [goals, setGoals] = useState<Goals>(loadGoals())
   const [profile, setProfile] = useState<Profile>(loadProfile())
   const [ai, setAi] = useState<Awaited<ReturnType<typeof aiStatus>> | null>(null)
+  const [usage, setUsage] = useState<Usage>({ enabled: false })
+  const [own, setOwn] = useState<OwnKey | null>(getOwnKey())
+  const [provider, setProvider] = useState<Provider>(getOwnKey()?.provider ?? 'gemini')
+  const [keyText, setKeyText] = useState('')
+  const [keyBusy, setKeyBusy] = useState(false)
+  const [keyMsg, setKeyMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const latest = useLiveQuery(() => db.weights.orderBy('date').last(), [])
 
   useEffect(() => {
     void aiStatus().then(setAi)
+    void fetchUsage().then(setUsage)
   }, [])
+
+  async function saveKey() {
+    const k = keyText.trim()
+    if (k.length < 20) return setKeyMsg({ ok: false, text: 'That key looks too short. Paste the whole key.' })
+    setKeyBusy(true)
+    setKeyMsg(null)
+    try {
+      saveOwnKey({ provider, key: k })
+      setOwn({ provider, key: k })
+      setKeyText('')
+      const r = await checkOwnKey()
+      setKeyMsg({ ok: true, text: `Key works (${PROVIDER_INFO[r.provider as Provider]?.label ?? r.provider}). AI now uses your key.` })
+    } catch (e) {
+      setKeyMsg({ ok: false, text: (e as Error).message })
+    } finally {
+      setKeyBusy(false)
+      void fetchUsage().then(setUsage)
+    }
+  }
+
+  function removeKey() {
+    clearOwnKey()
+    setOwn(null)
+    setKeyMsg(null)
+    toast('Your API key was removed from this browser')
+    void fetchUsage().then(setUsage)
+  }
 
   // Pre-fill current weight from the latest weigh-in unless the user has typed their own.
   useEffect(() => {
@@ -249,7 +284,38 @@ export default function SettingsView() {
             Model layer: {ai.llmLayer === 'langchain' ? 'LangChain' : 'native adapters'} · Coach: {ai.coachEngine === 'langgraph' ? 'LangGraph agent' : 'classic loop'}
           </p>
         )}
-        <p className="muted small-text">Providers and models are set in the .env file next to the app. Restart the dev server after changing it.</p>
+        {usage.enabled && !usage.unlimited && usage.limit ? (
+          <p className="small-text">{own ? 'Your own key is in use, so requests do not count against the shared allowance.' : `Daily AI allowance: ${usage.used}/${usage.limit} used.`}</p>
+        ) : null}
+        <div className="ai-key">
+          <h4>{own ? `Using your own ${PROVIDER_INFO[own.provider].label} key (${maskKey(own.key)})` : 'Use your own API key'}</h4>
+          <p className="muted small-text">For unlimited use on your own account. The key stays in this browser, is never stored on the server, and is sent with each AI request over HTTPS.</p>
+          <div className="chips">
+            {(Object.keys(PROVIDER_INFO) as Provider[]).map((p) => (
+              <button key={p} type="button" aria-pressed={provider === p} className={`chip ${provider === p ? 'on' : ''}`} onClick={() => setProvider(p)}>
+                {PROVIDER_INFO[p].label}
+              </button>
+            ))}
+          </div>
+          <label className="fld">
+            <span>
+              API key · {PROVIDER_INFO[provider].hint} · get one at {PROVIDER_INFO[provider].url}
+            </span>
+            <input type="password" autoComplete="off" spellCheck={false} placeholder="Paste your key" value={keyText} onChange={(e) => setKeyText(e.target.value)} />
+          </label>
+          <div className="ai-key-actions">
+            <button type="button" className="btn primary" disabled={!keyText.trim() || keyBusy} onClick={() => void saveKey()}>
+              {keyBusy ? 'Testing…' : 'Save & test'}
+            </button>
+            {own && (
+              <button type="button" className="btn" onClick={removeKey}>
+                Remove
+              </button>
+            )}
+          </div>
+          {keyMsg && <p className={`small-text ${keyMsg.ok ? 'key-ok' : 'key-bad'}`}>{keyMsg.text}</p>}
+        </div>
+        <p className="muted small-text">Providers and models for the shared server are set in the .env file next to the app.</p>
       </section>
 
       <section className="card">

@@ -33,7 +33,7 @@ export class UsageStore {
     this.file = file
     this.now = now
     this.tz = tz
-    this.data = { day: dayKey(now(), tz), counts: {} }
+    this.data = { day: dayKey(now(), tz), counts: {}, refunds: {} }
     this.timer = null
     if (file) this.load()
   }
@@ -41,7 +41,7 @@ export class UsageStore {
   load() {
     try {
       const raw = JSON.parse(fs.readFileSync(this.file, 'utf8'))
-      if (raw?.day === this.data.day && raw.counts && typeof raw.counts === 'object') this.data = raw
+      if (raw?.day === this.data.day && raw.counts && typeof raw.counts === 'object') this.data = { refunds: {}, ...raw }
     } catch {
       /* no file yet, or unreadable: start fresh */
     }
@@ -64,7 +64,7 @@ export class UsageStore {
   /** Starts a new day's counts when the date has changed. */
   roll() {
     const today = dayKey(this.now(), this.tz)
-    if (this.data.day !== today) this.data = { day: today, counts: {} }
+    if (this.data.day !== today) this.data = { day: today, counts: {}, refunds: {} }
   }
 
   used(key) {
@@ -88,8 +88,12 @@ export class UsageStore {
     return { ok: true, used: mine + cost, limit: perUser, remaining: perUser > 0 ? perUser - mine - cost : null }
   }
 
-  refund(uid, cost) {
+  /** Gives actions back after a failure on our side. Capped per person per day so errors cannot be farmed for free AI. */
+  refund(uid, cost, maxPerDay = 5) {
     this.roll()
+    const n = (this.data.refunds[uid] ?? 0) + 1
+    if (n > maxPerDay) return
+    this.data.refunds[uid] = n
     this.data.counts[uid] = Math.max(0, this.used(uid) - cost)
     this.data.counts[GLOBAL_KEY] = Math.max(0, this.used(GLOBAL_KEY) - cost)
     this.save()
@@ -111,7 +115,8 @@ export function limitsFor(user) {
     .filter(Boolean)
   return {
     perUser: user?.email && unlimited.includes(user.email) ? 0 : num(process.env.DAILY_AI_LIMIT, 40),
-    global: num(process.env.GLOBAL_DAILY_AI_LIMIT, 0),
+    // on a hosted server a missing global cap would mean no ceiling at all, so default to a conservative one
+    global: num(process.env.GLOBAL_DAILY_AI_LIMIT, process.env.NODE_ENV === 'production' ? 500 : 0),
   }
 }
 
@@ -127,6 +132,10 @@ export function meterAI(cost, store = null) {
   return (req, res, next) => {
     const s = store ?? defaultStore()
     if (!cost || !req.user) return next() // free actions, and open (unauthenticated) local mode, are not metered
+    if (req.ownKey) {
+      res.set('X-AI-Key', 'own') // the person's own API key pays for this, so it does not use the shared allowance
+      return next()
+    }
     const lim = limitsFor(req.user)
     const r = s.consume(req.user.uid, cost, lim)
     const reset = s.resetAt()
@@ -164,6 +173,7 @@ export function usageHandler(store = null) {
     res.json({
       enabled: true,
       unlimited: lim.perUser === 0,
+      ownKey: Boolean(req.ownKey),
       used,
       limit: lim.perUser,
       remaining: lim.perUser > 0 ? Math.max(0, lim.perUser - used) : null,

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ScrollView, View } from 'react-native'
+import { View } from 'react-native'
+import { KeyboardScroll } from '@/components/KeyboardScroll'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { MEALS, addDays, longDate, todayStr } from '@shared/dates'
@@ -12,6 +13,7 @@ import { requestPlan } from '@/lib/api'
 import { feel } from '@/lib/feel'
 import { Card, Chip, Dot, PrimaryButton, SecondaryButton, T } from '@/components/ui'
 import { DietEditor } from '@/components/DietEditor'
+import { RecipeButtons } from '@/components/Recipe'
 import { Skeleton } from '@/components/Skeleton'
 import { useToast } from '@/components/Toast'
 
@@ -226,9 +228,9 @@ export default function PlanScreen() {
   const loggedNow = useMemo(() => new Set(eatenFood.map((e) => e.meal ?? 'snack')), [eatenFood])
 
   const shell = (children: React.ReactNode) => (
-    <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets showsVerticalScrollIndicator={false} style={{ backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 16, paddingBottom: 40, gap: 16 }}>
+    <KeyboardScroll keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ backgroundColor: t.bg }} contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 16, paddingBottom: 40, gap: 16 }}>
       {children}
-    </ScrollView>
+    </KeyboardScroll>
   )
 
   if (!saved || editing) {
@@ -398,6 +400,7 @@ export default function PlanScreen() {
                         {it.reasons.join(' · ')}
                       </T>
                     ) : null}
+                    <RecipeButtons name={it.name} quantity={it.quantity} diet={todaysDiet} allergies={diet.allergies} />
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <T variant="callout" style={{ fontVariant: ['tabular-nums'] }}>
