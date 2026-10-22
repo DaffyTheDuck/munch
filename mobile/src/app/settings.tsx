@@ -6,7 +6,8 @@ import Constants from 'expo-constants'
 import { Ionicons } from '@expo/vector-icons'
 import { font, radius, useTheme } from '@/theme'
 import { deleteSetting, setSetting } from '@/lib/db'
-import { checkOwnKey, fetchUsage, health, serverUrl, type Health, type Usage } from '@/lib/api'
+import { checkOwnKey, fetchUsage, health, serverUrl, type Health } from '@/lib/api'
+import { useUsage } from '@/lib/usage'
 import { PROVIDER_INFO, clearOwnKey, getOwnKey, maskKey, saveOwnKey, type OwnKey, type Provider } from '@/lib/aikey'
 import { loadTheme, saveTheme, type ThemePref } from '@/lib/themePref'
 import { feel } from '@/lib/feel'
@@ -65,7 +66,7 @@ export default function SettingsScreen() {
 
   const [theme, setTheme] = useState<ThemePref>('system')
 
-  const [usage, setUsage] = useState<Usage>({ enabled: false })
+  const usage = useUsage()
   const [own, setOwn] = useState<OwnKey | null>(null)
   const [provider, setProvider] = useState<Provider>('gemini')
   const [keyText, setKeyText] = useState('')
@@ -77,7 +78,7 @@ export default function SettingsScreen() {
   const [status, setStatus] = useState<Health | null>(null)
   const [checking, setChecking] = useState(false)
 
-  const refreshUsage = useCallback(() => void fetchUsage().then(setUsage), [])
+  const refreshUsage = useCallback(() => void fetchUsage(), [])
 
   useEffect(() => {
     void loadTheme().then(setTheme)

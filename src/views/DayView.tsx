@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCountUp } from '../hooks'
 import { db, deleteEntries, getHints, loadGoals, useSettingsVersion } from '../db'
-import { analyze, fetchUsage, type Usage } from '../api'
+import { analyze, fetchUsage } from '../api'
 import { resolveLocally } from '../../shared/resolve'
 import { buildHistory } from '../../shared/recommend'
 import { MEALS, addDays, autoMeal, fileToResizedDataUrl, longDate, makeThumb, prettyDate, todayStr } from '../util'
@@ -21,14 +21,24 @@ const sumOf = (list: Entry[]): Totals =>
     { calories: 0, protein: 0, carbs: 0, fat: 0 },
   )
 
+const shortDay = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+const minDate = (a: string, b: string) => (a < b ? a : b)
+
 export default function DayView({ date, setDate, onGoals }: { date: string; setDate: (d: string) => void; onGoals: () => void }) {
   const toast = useToast()
   useSettingsVersion() // re-render when goals change (e.g. edited on another device)
   const goals = loadGoals()
   const entries = useLiveQuery(() => db.entries.where('date').equals(date).sortBy('createdAt'), [date]) ?? []
   const recentRaw = useLiveQuery(() => db.entries.orderBy('createdAt').reverse().limit(120).toArray(), []) ?? []
-  const weekStart = addDays(date, -6)
-  const weekEntries = useLiveQuery(() => db.entries.where('date').between(weekStart, date, true, true).toArray(), [date]) ?? []
+  // The chart shows a fixed 7-day window. Picking a day highlights it; it never moves the window.
+  const [weekEnd, setWeekEnd] = useState(todayStr())
+  const weekStart = addDays(weekEnd, -6)
+  useEffect(() => {
+    // arrows or the calendar can move the selected day out of view: bring its week into the window
+    if (date < weekStart) setWeekEnd(minDate(todayStr(), addDays(date, 3)))
+    else if (date > weekEnd) setWeekEnd(minDate(todayStr(), addDays(date, 3)))
+  }, [date, weekStart, weekEnd])
+  const weekEntries = useLiveQuery(() => db.entries.where('date').between(weekStart, weekEnd, true, true).toArray(), [weekStart, weekEnd]) ?? []
 
   const [text, setText] = useState('')
   const [image, setImage] = useState<string | null>(null)
@@ -46,9 +56,8 @@ export default function DayView({ date, setDate, onGoals }: { date: string; setD
   const [phase, setPhase] = useState(0)
   const [error, setError] = useState('')
   const [note, setNote] = useState('')
-  const [usage, setUsage] = useState<Usage | null>(null)
   useEffect(() => {
-    void fetchUsage().then(setUsage)
+    void fetchUsage() // keeps the shared allowance state (and its low-balance warning) current
   }, [])
   const [hint, setHint] = useState('')
   const [editing, setEditing] = useState<Entry | null>(null)
@@ -173,7 +182,6 @@ export default function DayView({ date, setDate, onGoals }: { date: string; setD
       setError((e as Error).message)
     } finally {
       setBusy(false)
-      void fetchUsage().then(setUsage)
     }
   }
 
@@ -370,13 +378,22 @@ export default function DayView({ date, setDate, onGoals }: { date: string; setD
 
           <section className="card week">
             <div className="card-title">
-              <h3>Last 7 days</h3>
-              <span className="muted small-text">{week.avg ? `avg ${week.avg.toLocaleString()} kcal` : 'tap a bar to open a day'}</span>
+              <h3>{weekEnd === todayStr() ? 'Last 7 days' : `${shortDay(weekStart)} – ${shortDay(weekEnd)}`}</h3>
+              <span className="week-nav">
+                <button type="button" className="icon-btn" aria-label="Previous week" onClick={() => setWeekEnd(addDays(weekEnd, -7))}>
+                  <Icon name="left" size={16} />
+                </button>
+                <button type="button" className="icon-btn" aria-label="Next week" disabled={weekEnd >= todayStr()} onClick={() => setWeekEnd(minDate(todayStr(), addDays(weekEnd, 7)))}>
+                  <Icon name="right" size={16} />
+                </button>
+              </span>
             </div>
+            <p className="muted small-text week-sub">{week.avg ? `avg ${week.avg.toLocaleString()} kcal on days you logged · ` : ''}tap a bar to open that day</p>
             <div className="bars">
               <div className="goal-line" style={{ bottom: `${(goals.calories / weekMax) * 100}%` }} />
               {week.days.map((d, i) => (
                 <button key={d} className={`col ${d === date ? 'sel' : ''}`} onClick={() => setDate(d)} title={`${d}: ${Math.round(week.vals[i])} kcal`}>
+                  <b className="col-val">{week.vals[i] > 0 ? Math.round(week.vals[i]) : ''}</b>
                   <span className="col-bar">
                     <i className={week.vals[i] > goals.calories ? 'over' : ''} style={{ height: `${Math.max(0, (week.vals[i] / weekMax) * 100)}%` }} />
                   </span>
@@ -466,11 +483,6 @@ export default function DayView({ date, setDate, onGoals }: { date: string; setD
             </div>
             <div className="composer-hint muted">
               <kbd>Enter</kbd> to log · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line · paste or drop a photo · <kbd>/</kbd> to focus
-              {usage?.enabled && !usage.unlimited && (
-                <span className={`usage-chip ${(usage.remaining ?? 1) <= 5 ? 'low' : ''}`} title={usage.resetAt ? `Resets ${new Date(usage.resetAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}>
-                  <Icon name="sparkle" size={11} /> AI today {usage.used}/{usage.limit}
-                </span>
-              )}
             </div>
             {error && <div className="msg error">{error}</div>}
             {note && !error && <div className="msg">{note}</div>}

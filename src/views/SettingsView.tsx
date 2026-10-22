@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, exportAll, importAll, loadDiet, loadGoals, loadProfile, saveDiet, saveGoals, saveProfile, useSettingsVersion } from '../db'
-import { aiStatus, checkOwnKey, fetchUsage, type Usage } from '../api'
+import { aiStatus, checkOwnKey, fetchUsage } from '../api'
+import { useUsage } from '../lib/usage'
 import { PROVIDER_INFO, clearOwnKey, getOwnKey, maskKey, saveOwnKey, type OwnKey, type Provider } from '../lib/aikey'
 import { ACTIVITY, PACES, buildPlan, type Profile } from '../nutrition'
 import { addDays, todayStr } from '../util'
@@ -27,7 +28,7 @@ export default function SettingsView() {
   const [goals, setGoals] = useState<Goals>(loadGoals())
   const [profile, setProfile] = useState<Profile>(loadProfile())
   const [ai, setAi] = useState<Awaited<ReturnType<typeof aiStatus>> | null>(null)
-  const [usage, setUsage] = useState<Usage>({ enabled: false })
+  const usage = useUsage()
   const [own, setOwn] = useState<OwnKey | null>(getOwnKey())
   const [provider, setProvider] = useState<Provider>(getOwnKey()?.provider ?? 'gemini')
   const [keyText, setKeyText] = useState('')
@@ -37,7 +38,7 @@ export default function SettingsView() {
 
   useEffect(() => {
     void aiStatus().then(setAi)
-    void fetchUsage().then(setUsage)
+    void fetchUsage()
   }, [])
 
   async function saveKey() {
@@ -55,7 +56,7 @@ export default function SettingsView() {
       setKeyMsg({ ok: false, text: (e as Error).message })
     } finally {
       setKeyBusy(false)
-      void fetchUsage().then(setUsage)
+      void fetchUsage()
     }
   }
 
@@ -64,7 +65,7 @@ export default function SettingsView() {
     setOwn(null)
     setKeyMsg(null)
     toast('Your API key was removed from this browser')
-    void fetchUsage().then(setUsage)
+    void fetchUsage()
   }
 
   // Pre-fill current weight from the latest weigh-in unless the user has typed their own.

@@ -6,15 +6,15 @@ import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai'
 import { ChatGroq } from '@langchain/groq'
 import { ChatAnthropic } from '@langchain/anthropic'
-import { geminiCap, hasKey, keyFor, modelFor, providerChain, redact } from './llm.mjs'
+import { geminiCap, hasKey, hedge, keyFor, modelFor, providerChain, redact } from './llm.mjs'
 
 const TIMEOUT_MS = 45000
 
-export function makeChatModel(provider, { vision = false, maxTokens = 1500, temperature = 0.2 } = {}) {
+export function makeChatModel(provider, { vision = false, maxTokens = 1500, temperature = 0.2, fast = false } = {}) {
   const model = modelFor(provider, { vision })
   if (provider === 'anthropic') return new ChatAnthropic({ model, apiKey: keyFor('anthropic'), temperature, maxTokens })
   if (provider === 'groq') return new ChatGroq({ model, apiKey: keyFor('groq'), temperature, maxTokens })
-  return new ChatGoogleGenerativeAI({ model, apiKey: keyFor('gemini'), temperature, maxOutputTokens: geminiCap(maxTokens) })
+  return new ChatGoogleGenerativeAI({ model, apiKey: keyFor('gemini'), temperature, maxOutputTokens: geminiCap(maxTokens, fast), ...(fast ? { thinkingConfig: { thinkingBudget: 0 } } : {}) })
 }
 
 export function toLangChainMessages(system, messages) {
@@ -60,25 +60,25 @@ export function fallbackRunnable({ vision = false, maxTokens = 1500, provider: o
   return { runnable: rest.length ? first.withFallbacks({ fallbacks: rest }) : first, trace, chain }
 }
 
-export async function generateWithLangChain({ system, messages, maxTokens = 1500, provider }) {
+export async function generateWithLangChain({ system, messages, maxTokens = 1500, provider, fast = false }) {
   const vision = messages.some((m) => m.image)
-  const { runnable, trace, chain } = fallbackRunnable({ vision, maxTokens, provider })
-  try {
-    const reply = await runnable.invoke(toLangChainMessages(system, messages))
-    const text = contentToText(reply.content)
-    if (!text) throw new Error(`Empty response from ${trace.answered}`)
-    return {
-      text,
-      ms: trace.ms,
-      provider: trace.answered,
-      model: modelFor(trace.answered, { vision }),
-      fellBackFrom: trace.failed.map((f) => f.provider),
-    }
-  } catch (e) {
-    if (trace.failed.length > 1) {
-      throw new Error(`All AI providers failed. ${trace.failed.map((f) => `${f.provider}: ${String(f.reason).slice(0, 120)}`).join(' | ')}`)
-    }
-    if (chain.length === 1 || trace.failed.length === 1) throw new Error(trace.failed[0]?.reason || e.message)
-    throw e
+  const chain = providerChain(provider).filter(hasKey)
+  if (!chain.length) {
+    const wanted = providerChain(provider)[0] || 'gemini'
+    throw new Error(`${{ gemini: 'GEMINI_API_KEY', groq: 'GROQ_API_KEY', anthropic: 'ANTHROPIC_API_KEY' }[wanted]} is not set in .env`)
   }
+  const input = toLangChainMessages(system, messages)
+  // Same provider order and hedging as the native layer; each provider is a LangChain chat model.
+  return hedge(
+    chain.map((p) => ({
+      name: p,
+      run: async () => {
+        const started = Date.now()
+        const reply = await makeChatModel(p, { vision, maxTokens, fast }).invoke(input, { signal: AbortSignal.timeout(TIMEOUT_MS) })
+        const text = contentToText(reply.content)
+        if (!text) throw new Error(`Empty response from ${p}`)
+        return { text, ms: Date.now() - started, provider: p, model: modelFor(p, { vision }) }
+      },
+    })),
+  )
 }

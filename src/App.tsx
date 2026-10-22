@@ -8,6 +8,7 @@ import PlanView from './views/PlanView'
 import SettingsView from './views/SettingsView'
 import Icon from './components/Icon'
 import { ToastProvider } from './components/Toast'
+import UsageWatcher from './components/UsageWatcher'
 import ThemeSwitch from './components/ThemeSwitch'
 import Logo from './components/Logo'
 import LoginScreen from './views/LoginScreen'
@@ -46,6 +47,7 @@ export default function App() {
 
   return (
     <ToastProvider>
+      <UsageWatcher />
       <div className="app">
         <aside className="side">
           <div className="brand">

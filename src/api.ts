@@ -2,6 +2,9 @@ import type { AiResult } from './types'
 import type { PlanRequestBody, PlanResponse } from '../shared/diet'
 import { authHeader } from './lib/token'
 import { aiHeaders } from './lib/aikey'
+import { noteHeaders, setUsage, type Usage } from './lib/usage'
+
+export type { Usage }
 
 async function post<T>(url: string, body: unknown): Promise<T> {
   const ctrl = new AbortController()
@@ -13,6 +16,7 @@ async function post<T>(url: string, body: unknown): Promise<T> {
       body: JSON.stringify(body),
       signal: ctrl.signal,
     })
+    noteHeaders(res)
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`)
     return data as T
@@ -61,21 +65,13 @@ export async function aiStatus(): Promise<{
   }
 }
 
-export interface Usage {
-  enabled: boolean
-  unlimited?: boolean
-  used?: number
-  limit?: number
-  remaining?: number | null
-  resetAt?: string
-  ownKey?: boolean
-}
-
 /** How many AI actions you have used today (only when the server meters them). */
 export async function fetchUsage(): Promise<Usage> {
   try {
     const res = await fetch('/api/usage', { headers: { ...(await authHeader()), ...aiHeaders() } })
-    return res.ok ? ((await res.json()) as Usage) : { enabled: false }
+    const u = res.ok ? ((await res.json()) as Usage) : { enabled: false }
+    setUsage(u)
+    return u
   } catch {
     return { enabled: false }
   }

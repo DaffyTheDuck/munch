@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { useTheme } from '@/theme'
 import { getDb } from '@/lib/db'
 import { ToastProvider } from '@/components/Toast'
+import { UsageWatcher } from '@/components/UsageWatcher'
 import { SessionProvider, useSession } from '@/lib/session'
 import { LoginScreen } from '@/components/LoginScreen'
 import { View } from 'react-native'
@@ -59,6 +60,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ToastProvider>
           <StatusBar style={t.dark ? 'light' : 'dark'} />
+          <UsageWatcher />
           <SessionProvider>
             <Gate />
           </SessionProvider>

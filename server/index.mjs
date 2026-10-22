@@ -1,5 +1,6 @@
 import { createApp, allowedEmails, authEnabled } from './app.mjs'
 import { providerInfo } from './llm.mjs'
+import { defaultStore } from './usage.mjs'
 
 // A hosted server must never run without sign-in: that would let anyone spend your AI budget.
 if (process.env.NODE_ENV === 'production' && !authEnabled() && process.env.ALLOW_OPEN !== '1') {
@@ -7,8 +8,15 @@ if (process.env.NODE_ENV === 'production' && !authEnabled() && process.env.ALLOW
   process.exit(1)
 }
 
+// Load today's saved usage before serving, and save it when the platform stops this instance.
+const store = defaultStore()
+await store.init()
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, () => void store.flush().finally(() => process.exit(0)))
+}
+
 const port = Number(process.env.PORT) || 8787
-createApp().listen(port, () => {
+createApp({ usageStore: store }).listen(port, () => {
   const { provider, model, chain } = providerInfo()
   console.log(`Journable API on http://localhost:${port}`)
   console.log(

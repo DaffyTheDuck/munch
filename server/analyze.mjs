@@ -29,7 +29,7 @@ export async function analyzeInput({ text, image, hints = [], provider, groundin
   const user ={ role: 'user', text: buildUserText(text, hints), image }
   const started = Date.now()
   let llmMs = 0
-  let raw = await generate({ system: SYSTEM, messages: [user], provider })
+  let raw = await generate({ system: SYSTEM, messages: [user], provider, fast: true })
   llmMs += raw.ms
   let parsed = validate(AnalyzeResult, raw.text)
   let repaired = false
@@ -40,6 +40,7 @@ export async function analyzeInput({ text, image, hints = [], provider, groundin
       system: SYSTEM,
       messages: [user, { role: 'model', text: raw.text }, { role: 'user', text: `That output was invalid (${parsed.error}). Reply with ONLY the corrected JSON.` }],
       provider,
+      fast: true,
     })
     llmMs += raw.ms
     parsed = validate(AnalyzeResult, raw.text)
@@ -49,7 +50,7 @@ export async function analyzeInput({ text, image, hints = [], provider, groundin
   const apiKey = process.env.USDA_API_KEY || 'DEMO_KEY'
   const enabled = grounding && (process.env.GROUNDING || 'on') !== 'off'
   const items = enabled
-    ? await groundItems(parsed.data.items, { apiKey })
+    ? await groundItems(parsed.data.items, { apiKey, timeoutMs: 1500 })
     : parsed.data.items.map((i) => ({ ...i, source: 'ai', match: '' }))
 
   const rounded = items.map((i) => ({

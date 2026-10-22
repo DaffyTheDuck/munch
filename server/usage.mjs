@@ -9,6 +9,7 @@
 // Foods resolved on the device (history / catalog) and the on-device recommendation engine cost nothing.
 import fs from 'node:fs'
 import path from 'node:path'
+import { FirestoreUsageBackend } from './usage.firestore.mjs'
 
 export const GLOBAL_KEY = '*'
 
@@ -29,13 +30,44 @@ export function nextReset(now = new Date(), tz = 'UTC') {
 }
 
 export class UsageStore {
-  constructor({ file = null, now = () => new Date(), tz = 'UTC' } = {}) {
+  constructor({ file = null, now = () => new Date(), tz = 'UTC', backend = null } = {}) {
     this.file = file
+    this.backend = backend
     this.now = now
     this.tz = tz
     this.data = { day: dayKey(now(), tz), counts: {}, refunds: {} }
     this.timer = null
     if (file) this.load()
+  }
+
+  /** Loads today's counts from the durable backend (Firestore). Call once before serving requests. */
+  async init() {
+    if (!this.backend) return
+    try {
+      const saved = await this.backend.load(this.data.day)
+      if (saved) this.data = { day: this.data.day, counts: saved.counts, refunds: saved.refunds }
+    } catch (e) {
+      console.warn(`usage: could not load saved counts (${String(e.message).slice(0, 80)}); starting from this server's memory`)
+    }
+  }
+
+  /** Writes immediately (used on shutdown). */
+  async flush() {
+    clearTimeout(this.timer)
+    this.timer = null
+    await this.persist()
+  }
+
+  async persist() {
+    try {
+      if (this.file) {
+        fs.mkdirSync(path.dirname(this.file), { recursive: true })
+        fs.writeFileSync(this.file, JSON.stringify(this.data))
+      }
+      if (this.backend) await this.backend.save(this.data.day, this.data)
+    } catch (e) {
+      console.warn(`usage: could not save counts (${String(e.message).slice(0, 80)})`) // never blocks a request
+    }
   }
 
   load() {
@@ -51,12 +83,7 @@ export class UsageStore {
     if (!this.file || this.timer) return
     this.timer = setTimeout(() => {
       this.timer = null
-      try {
-        fs.mkdirSync(path.dirname(this.file), { recursive: true })
-        fs.writeFileSync(this.file, JSON.stringify(this.data))
-      } catch {
-        /* a failed write only loses persistence, never blocks a request */
-      }
+      void this.persist()
     }, 300)
     this.timer.unref?.()
   }
@@ -122,7 +149,13 @@ export function limitsFor(user) {
 
 let shared = null
 export function defaultStore() {
-  return (shared ??= new UsageStore({ file: process.env.USAGE_FILE || 'server/.data/usage.json', tz: process.env.QUOTA_TIMEZONE || 'UTC' }))
+  // Hosted servers restart often and lose their disk, so keep the counts in Firestore there.
+  const durable = process.env.USAGE_BACKEND === 'firestore' || (process.env.NODE_ENV === 'production' && Boolean(process.env.FIREBASE_PROJECT_ID) && process.env.USAGE_BACKEND !== 'memory')
+  return (shared ??= new UsageStore({
+    file: durable ? null : process.env.USAGE_FILE || 'server/.data/usage.json',
+    backend: durable ? new FirestoreUsageBackend() : null,
+    tz: process.env.QUOTA_TIMEZONE || 'UTC',
+  }))
 }
 
 const human = (d, tz) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz })
@@ -142,6 +175,7 @@ export function meterAI(cost, store = null) {
     if (lim.perUser > 0) {
       res.set('X-AI-Limit', String(lim.perUser))
       res.set('X-AI-Used', String(r.ok ? r.used : s.used(req.user.uid)))
+      res.set('X-AI-Reset', reset.toISOString())
     }
     if (!r.ok) {
       const paused = r.reason === 'global'

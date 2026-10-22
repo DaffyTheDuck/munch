@@ -4,6 +4,9 @@ import type { PlanRequestBody, PlanResponse } from '@shared/diet'
 import { getSetting } from './db'
 import { authHeader } from './token'
 import { aiHeaders } from './aikey'
+import { noteHeaders, setUsage, type Usage } from './usage'
+
+export type { Usage }
 
 // The phone talks to the same API server as the web app. In development, the server is assumed to run
 // on the computer that is serving the app (same Wi-Fi), on port 8787. Override it in Goals → Server.
@@ -36,6 +39,7 @@ async function request<T>(path: string, body?: unknown, timeoutMs = 60000): Prom
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: ctrl.signal,
     })
+    noteHeaders(res)
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error((data as { error?: string }).error || `Request failed (${res.status})`)
     return data as T
@@ -87,20 +91,12 @@ export async function health(): Promise<Health> {
 
 export const requestPlan = (body: PlanRequestBody) => request<PlanResponse>('/api/plan', body)
 
-export interface Usage {
-  enabled: boolean
-  unlimited?: boolean
-  used?: number
-  limit?: number
-  remaining?: number | null
-  resetAt?: string
-  ownKey?: boolean
-}
-
 /** How many AI actions you have used today (only when the server meters them). */
 export async function fetchUsage(): Promise<Usage> {
   try {
-    return await request<Usage>('/api/usage', undefined, 6000)
+    const u = await request<Usage>('/api/usage', undefined, 6000)
+    setUsage(u)
+    return u
   } catch {
     return { enabled: false }
   }

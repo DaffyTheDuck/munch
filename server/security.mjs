@@ -48,6 +48,7 @@ export function cors(allowed = (process.env.ALLOWED_ORIGINS || '').split(',').ma
         'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-AI-Key, X-AI-Provider',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Max-Age': '600',
+        'Access-Control-Expose-Headers': 'X-AI-Limit, X-AI-Used, X-AI-Reset, X-AI-Key',
       })
     }
     if (req.method === 'OPTIONS') return res.status(204).end()

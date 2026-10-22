@@ -699,3 +699,9 @@ body::before {
 .recipe-body { display: grid; gap: 4px; padding: 12px; border-radius: 12px; background: var(--card-2); font-size: 13px; line-height: 1.45; }
 .recipe-body ul, .recipe-body ol { margin: 0 0 4px; padding-left: 18px; }
 .bad-text { color: var(--over); }
+
+/* last-7-days chart */
+.week-nav { display: inline-flex; gap: 4px; }
+.week-sub { margin: -4px 0 8px; }
+.col-val { font-size: 10px; font-weight: 600; color: var(--muted); height: 14px; font-variant-numeric: tabular-nums; }
+.col.sel .col-val { color: var(--text); }

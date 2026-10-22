@@ -33,7 +33,7 @@ export async function makeRecipe(raw) {
   const r = parsed.data
   const prompt = `<dish>${r.name}${r.quantity ? ` (${r.quantity})` : ''}</dish>\nDiet: ${r.diet}. Allergies to avoid: ${r.allergies.join(', ') || 'none'}.`
   for (let attempt = 0; attempt < 2; attempt++) {
-    const out = await generate({ system: SYSTEM, messages: [{ role: 'user', text: prompt }], maxTokens: 1200 })
+    const out = await generate({ system: SYSTEM, messages: [{ role: 'user', text: prompt }], maxTokens: 1200, fast: true })
     try {
       const recipe = Recipe.parse(extractJson(out.text))
       const text = recipe.ingredients.map((i) => i.item).join(' ').toLowerCase()

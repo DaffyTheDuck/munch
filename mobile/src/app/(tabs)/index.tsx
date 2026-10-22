@@ -10,7 +10,7 @@ import { resolveLocally } from '@shared/resolve'
 import { buildHistory } from '@shared/recommend'
 import { mealColor, radius, useTheme } from '@/theme'
 import { addEntries, addEntry, deleteEntries, entriesBetween, entriesForDate, getHints, getSetting, hasSavedGoals, recentEntries, setSetting, useGoals, useLive } from '@/lib/db'
-import { analyze, fetchUsage, type Usage } from '@/lib/api'
+import { analyze, fetchUsage } from '@/lib/api'
 import { feel } from '@/lib/feel'
 import { makeThumb, pickImage, type Picked } from '@/lib/image'
 import { useKeyboardLift, useCountUp, useTicker } from '@/lib/hooks'
@@ -23,6 +23,10 @@ import { useToast } from '@/components/Toast'
 
 const PHASES = ['Reading what you wrote…', 'Estimating portions…', 'Checking nutrition data…', 'Almost there…']
 const EXAMPLES = ['two eggs on toast with coffee', 'dos tacos de carnitas', 'a bowl of ramen', 'ek plate poha aur chai', '30 min run']
+
+const minDate = (a: string, b: string) => (a < b ? a : b)
+const weekdayLetter = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'narrow' })
+const shortDay = (d: string) => new Date(d + 'T12:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 
 const sum = (list: Entry[], k: 'calories' | 'protein' | 'carbs' | 'fat') => list.reduce((s, e) => s + e[k], 0)
 
@@ -58,8 +62,14 @@ export default function Today() {
   const goals = useGoals()
   const entries = useLive(() => entriesForDate(date), [date], [] as Entry[])
   const recentRaw = useLive(() => recentEntries(), [], [] as Entry[])
-  const weekStart = addDays(date, -6)
-  const weekEntries = useLive(() => entriesBetween(weekStart, date), [date], [] as Entry[])
+  // The chart shows a fixed 7-day window. Picking a day highlights it; it never moves the window.
+  const [weekEnd, setWeekEnd] = useState(todayStr())
+  const weekStart = addDays(weekEnd, -6)
+  useEffect(() => {
+    // the day arrows can move the selected day out of view: bring its week into the window
+    if (date < weekStart || date > weekEnd) setWeekEnd(minDate(todayStr(), addDays(date, 3)))
+  }, [date, weekStart, weekEnd])
+  const weekEntries = useLive(() => entriesBetween(weekStart, weekEnd), [weekStart, weekEnd], [] as Entry[])
   const goalsSaved = useLive(hasSavedGoals, [], true)
   const dismissed = useLive(() => getSetting('onboardDismissed'), [], '1' as string | null)
 
@@ -72,10 +82,8 @@ export default function Today() {
   const [error, setError] = useState('')
   const [note, setNote] = useState('')
   const [composerH, setComposerH] = useState(160)
-  const [usage, setUsage] = useState<Usage>({ enabled: false })
-
   useEffect(() => {
-    void fetchUsage().then(setUsage)
+    void fetchUsage() // keeps the shared allowance state (and its low-balance warning) current
   }, [])
 
   const inputRef = useRef<TextInput>(null)
@@ -120,7 +128,8 @@ export default function Today() {
   const week = useMemo(() => {
     const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
     const vals = days.map((d) => weekEntries.filter((e) => e.date === d).reduce((s, e) => s + (e.kind === 'food' ? e.calories : -e.calories), 0))
-    return { days, vals, max: Math.max(goals.calories * 1.15, ...vals) }
+    const logged = vals.filter((v) => v > 0)
+    return { days, vals, max: Math.max(goals.calories * 1.15, ...vals), avg: logged.length ? Math.round(logged.reduce((a, b) => a + b, 0) / logged.length) : 0 }
   }, [weekEntries, weekStart, goals.calories])
 
   async function submit() {
@@ -184,7 +193,6 @@ export default function Today() {
       setError((e as Error).message)
     } finally {
       setBusy(false)
-      void fetchUsage().then(setUsage)
     }
   }
 
@@ -304,23 +312,32 @@ export default function Today() {
 
         {/* Last 7 days */}
         <Card style={{ gap: 12 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <T variant="headline">Last 7 days</T>
-            <T variant="caption" muted>
-              tap a day to open it
-            </T>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View>
+              <T variant="headline">{weekEnd === todayStr() ? 'Last 7 days' : `${shortDay(weekStart)} – ${shortDay(weekEnd)}`}</T>
+              <T variant="caption" muted>
+                {week.avg ? `avg ${week.avg.toLocaleString()} kcal · ` : ''}tap a day to open it
+              </T>
+            </View>
+            <View style={{ flexDirection: 'row' }}>
+              <IconButton name="chevron-back" label="Previous week" haptic="select" size={20} onPress={() => setWeekEnd(addDays(weekEnd, -7))} />
+              <IconButton name="chevron-forward" label="Next week" haptic="select" size={20} disabled={weekEnd >= todayStr()} onPress={() => setWeekEnd(minDate(todayStr(), addDays(weekEnd, 7)))} />
+            </View>
           </View>
-          <View style={{ flexDirection: 'row', gap: 8, height: 92 }}>
+          <View style={{ flexDirection: 'row', gap: 8, height: 108 }}>
             {week.days.map((d, i) => {
               const v = Math.max(0, week.vals[i])
               const sel = d === date
               return (
-                <Press key={d} onPress={() => setDate(d)} haptic="select" accessibilityLabel={`${prettyDate(d)}, ${Math.round(v)} calories`} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+                <Press key={d} onPress={() => setDate(d)} haptic="select" accessibilityLabel={`${prettyDate(d)}, ${Math.round(v)} calories`} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+                  <T variant="caption" style={{ fontSize: 10, fontVariant: ['tabular-nums'], color: sel ? t.text : t.muted }}>
+                    {v > 0 ? Math.round(v) : ' '}
+                  </T>
                   <View style={{ flex: 1, width: '100%', backgroundColor: t.card2, borderRadius: 8, justifyContent: 'flex-end', overflow: 'hidden' }}>
                     <View style={{ height: `${Math.min(100, (v / week.max) * 100)}%`, backgroundColor: v > goals.calories ? t.over : t.accent, opacity: sel ? 1 : 0.55, borderRadius: 8 }} />
                   </View>
                   <T variant="caption" style={{ fontSize: 11, fontFamily: sel ? 'DMSans_700Bold' : 'DMSans_400Regular', color: sel ? t.text : t.muted }}>
-                    {prettyDate(d).charAt(0)}
+                    {weekdayLetter(d)}
                   </T>
                 </Press>
               )
@@ -447,11 +464,6 @@ export default function Today() {
         onLayout={(e) => setComposerH(e.nativeEvent.layout.height)}
         style={{ position: 'absolute', left: 0, right: 0, bottom: lift, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 6 }}
       >
-        {usage.enabled && !usage.unlimited && usage.limit ? (
-          <T variant="caption" color={(usage.remaining ?? 0) <= 5 ? 'over' : 'muted'} style={{ paddingHorizontal: 8, paddingBottom: 4, textAlign: 'right' }}>
-            AI today {usage.used}/{usage.limit}
-          </T>
-        ) : null}
         {(error || note) && !busy ? (
           <T variant="caption" color={error ? 'over' : 'muted'} style={{ paddingHorizontal: 8, paddingBottom: 6 }}>
             {error || note}

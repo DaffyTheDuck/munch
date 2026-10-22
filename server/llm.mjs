@@ -37,7 +37,7 @@ export function redact(text) {
   let out = String(text ?? '')
   const own = keyContext.getStore()?.key
   if (own) out = out.split(own).join('[key]')
-  return out.replace(/AIza[w-]{16,}|gsk_[w-]{16,}|sk-ant-[w-]{16,}|sk-[w-]{20,}/g, '[key]')
+  return out.replace(/AIza[\w-]{16,}|gsk_[\w-]{16,}|sk-ant-[\w-]{16,}|sk-[\w-]{20,}/g, '[key]')
 }
 
 const upstream = (message, status) => Object.assign(new Error(message), { upstreamStatus: status })
@@ -65,7 +65,7 @@ function splitDataUrl(dataUrl) {
   return { mime: m[1], data: m[2] }
 }
 
-async function gemini({ system, messages, json, model, maxTokens }) {
+async function gemini({ system, messages, json, model, maxTokens, fast }) {
   const contents = messages.map((m) => {
     const parts = []
     if (m.image) {
@@ -81,7 +81,7 @@ async function gemini({ system, messages, json, model, maxTokens }) {
     body: JSON.stringify({
       system_instruction: { parts: [{ text: system }] },
       contents,
-      generationConfig: { ...(json ? { responseMimeType: 'application/json' } : {}), temperature: 0.2, maxOutputTokens: geminiCap(maxTokens) },
+      generationConfig: { ...(json ? { responseMimeType: 'application/json' } : {}), temperature: 0.2, maxOutputTokens: geminiCap(maxTokens, fast), ...(fast ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
@@ -143,11 +143,51 @@ async function groq({ system, messages, json, model, maxTokens }) {
 
 const ADAPTERS = { gemini, anthropic, groq }
 
-export async function generate({ system, messages, json = true, maxTokens = 1500, provider: override }) {
+/**
+ * Runs providers in order, but does not wait for a slow one: if the first has not answered after `delayMs`
+ * (or fails at once), the next is started alongside it and the first answer wins. A busy primary model
+ * therefore costs about `delayMs`, not its full timeout. tasks: [{ name, run: () => Promise<{ text, provider, model, ms }> }]
+ */
+export function hedge(tasks, delayMs = Number(process.env.HEDGE_MS) || 4000) {
+  return new Promise((resolve, reject) => {
+    const failures = []
+    let started = 0
+    let done = false
+    let timer = null
+    const startNext = () => {
+      if (done || started >= tasks.length) return
+      const task = tasks[started++]
+      clearTimeout(timer)
+      if (started < tasks.length) timer = setTimeout(startNext, delayMs)
+      task.run().then(
+        (value) => {
+          if (done) return
+          done = true
+          clearTimeout(timer)
+          resolve({ ...value, fellBackFrom: failures.map((f) => f.provider) })
+        },
+        (e) => {
+          const reason = e?.name === 'TimeoutError' ? 'timed out' : String(e?.message ?? e)
+          failures.push({ provider: task.name, reason, status: e?.upstreamStatus ?? e?.status })
+          console.warn(`${task.name} failed: ${redact(reason).slice(0, 140)}`)
+          if (done) return
+          if (failures.length === tasks.length) {
+            clearTimeout(timer)
+            const summary = failures.map((f) => `${f.provider}: ${redact(f.reason).slice(0, 120)}`).join(' | ')
+            reject(upstream(failures.length === 1 ? redact(failures[0].reason) : `All AI providers failed. ${summary}`, failures.at(-1)?.status))
+          } else startNext()
+        },
+      )
+    }
+    startNext()
+  })
+}
+
+export async function generate({ system, messages, json = true, maxTokens = 1500, provider: override, fast = false }) {
   if ((process.env.LLM_LAYER || '').toLowerCase() === 'langchain') {
     // Loaded lazily so the default path never needs the LangChain packages.
     const { generateWithLangChain } = await import('./llm.langchain.mjs')
-    return generateWithLangChain({ system, messages, maxTokens, provider: override })
+    return generateWithLangChain({ system, messages, maxTokens, provider: override, fast })
   }
   const chain = providerChain(override).filter(hasKey)
   if (!chain.length) {
@@ -155,26 +195,19 @@ export async function generate({ system, messages, json = true, maxTokens = 1500
     throw new Error(`${KEY_ENV[wanted] || 'An API key'} is not set in .env`)
   }
   const vision = messages.some((m) => m.image)
-  const failures = []
-
-  for (const provider of chain) {
-    const model = modelFor(provider, { vision })
-    const started = Date.now()
-    try {
-      const text = await ADAPTERS[provider]({ system, messages, json, model, maxTokens })
-      if (failures.length) console.warn(`fallback: ${failures.map((f) => f.provider).join(', ')} failed, answered by ${provider}`)
-      return { text, ms: Date.now() - started, provider, model, fellBackFrom: failures.map((f) => f.provider) }
-    } catch (e) {
-      const reason = e.name === 'TimeoutError' ? 'timed out' : e.message
-      failures.push({ provider, reason, status: e.upstreamStatus })
-      console.warn(`${provider} failed: ${redact(reason).slice(0, 140)}`)
-    }
-  }
-  const summary = failures.map((f) => `${f.provider}: ${redact(f.reason).slice(0, 120)}`).join(' | ')
-  const last = failures.at(-1)
-  throw upstream(failures.length === 1 ? redact(failures[0].reason) : `All AI providers failed. ${summary}`, last?.status)
+  return hedge(
+    chain.map((provider) => ({
+      name: provider,
+      run: async () => {
+        const model = modelFor(provider, { vision })
+        const started = Date.now()
+        const text = await ADAPTERS[provider]({ system, messages, json, model, maxTokens, fast })
+        return { text, ms: Date.now() - started, provider, model }
+      },
+    })),
+  )
 }
 
 // Gemini's hidden "thinking" tokens count against its output limit, so a tight cap truncates the JSON mid-answer.
-// Keep a ceiling (cost control) but leave room for thinking.
-export const geminiCap = (maxTokens) => Math.max(maxTokens * 4, 6000)
+// Keep a ceiling (cost control) but leave room for thinking; "fast" calls switch thinking off and need less room.
+export const geminiCap = (maxTokens, fast = false) => (fast ? Math.max(maxTokens * 2, 2000) : Math.max(maxTokens * 4, 6000))
