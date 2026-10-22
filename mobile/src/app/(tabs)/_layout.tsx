@@ -9,7 +9,7 @@ const TABS: { name: string; title: string; icon: Icon; active: Icon }[] = [
   { name: 'index', title: 'Today', icon: 'today-outline', active: 'today' },
   { name: 'plan', title: 'Plan', icon: 'restaurant-outline', active: 'restaurant' },
   { name: 'coach', title: 'Coach', icon: 'chatbubble-ellipses-outline', active: 'chatbubble-ellipses' },
-  { name: 'weight', title: 'Weight', icon: 'trending-up-outline', active: 'trending-up' },
+  { name: 'weight', title: 'Progress', icon: 'trending-up-outline', active: 'trending-up' },
   { name: 'goals', title: 'Goals', icon: 'flag-outline', active: 'flag' },
 ]
 

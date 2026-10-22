@@ -10,6 +10,7 @@ import { allWeights, deleteWeight, saveWeight, useGoals, useLive } from '@/lib/d
 import { feel } from '@/lib/feel'
 import { Card, Chip, IconButton, PrimaryButton, T } from '@/components/ui'
 import { useToast } from '@/components/Toast'
+import { Analysis } from '@/components/Analysis'
 
 const RANGES = [
   { id: 30, label: '30 days' },
@@ -23,6 +24,7 @@ const L = 36
 const B = 26
 
 export default function Weight() {
+  const [view, setView] = useState<'analysis' | 'log'>('analysis')
   const t = useTheme()
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -77,11 +79,18 @@ export default function Weight() {
       contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 16, paddingBottom: 40, gap: 16 }}
     >
       <View style={{ gap: 4 }}>
-        <T variant="largeTitle">Weight</T>
+        <T variant="largeTitle">Progress</T>
         <T variant="callout" muted>
-          Log once a day. Mornings give the cleanest trend.
+          {view === 'analysis' ? 'Why your weight moved, and what to change.' : 'Log once a day. Mornings give the cleanest trend.'}
         </T>
       </View>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Chip label="Weekly analysis" icon="analytics" selected={view === 'analysis'} onPress={() => { feel.select(); setView('analysis') }} />
+        <Chip label="Weight log" icon="scale" selected={view === 'log'} onPress={() => { feel.select(); setView('log') }} />
+      </View>
+      {view === 'analysis' ? <Analysis /> : null}
+      {view === 'log' ? (
+        <>
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
         {tiles.map(([value, label, color]) => (
@@ -204,6 +213,8 @@ export default function Weight() {
           ))}
         </Card>
       )}
+        </>
+      ) : null}
     </KeyboardScroll>
   )
 }

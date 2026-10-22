@@ -115,3 +115,5 @@ export interface Recipe {
 }
 export const fetchRecipe = (body: { name: string; quantity?: string; diet?: string; allergies?: string[] }) =>
   request<{ recipe: Recipe; videoUrl: string }>('/api/recipe', body, 60000)
+
+export const explainReport = (report: unknown) => request<{ text: string }>('/api/insights/explain', report, 60000)

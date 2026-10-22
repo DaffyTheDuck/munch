@@ -22,7 +22,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'plan', label: 'Plan', icon: 'utensils' },
   { id: 'coach', label: 'Coach', icon: 'coach' },
   { id: 'calendar', label: 'Calendar', icon: 'calendar' },
-  { id: 'weight', label: 'Weight', icon: 'weight' },
+  { id: 'weight', label: 'Progress', icon: 'weight' },
   { id: 'settings', label: 'Goals', icon: 'target' },
 ]
 

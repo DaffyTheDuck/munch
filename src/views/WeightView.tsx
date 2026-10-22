@@ -4,6 +4,7 @@ import { db, deleteWeight, loadGoals, useSettingsVersion } from '../db'
 import { addDays, todayStr } from '../util'
 import Icon from '../components/Icon'
 import { useToast } from '../components/Toast'
+import Analysis from '../components/Analysis'
 
 const RANGES: { id: number; label: string }[] = [
   { id: 30, label: '30 days' },
@@ -18,6 +19,7 @@ export default function WeightView() {
   const goals = loadGoals()
   const [kg, setKg] = useState('')
   const [range, setRange] = useState(90)
+  const [view, setView] = useState<'analysis' | 'log'>('analysis')
 
   async function add() {
     const n = Number(kg)
@@ -58,10 +60,23 @@ export default function WeightView() {
     <div className="page narrow">
       <header className="page-head">
         <div>
-          <h1>Weight</h1>
-          <p className="muted">Log once a day. Same time each morning gives the cleanest trend.</p>
+          <h1>Progress</h1>
+          <p className="muted">{view === 'analysis' ? 'Why your weight moved, and what to change.' : 'Log once a day. Same time each morning gives the cleanest trend.'}</p>
+        </div>
+        <div className="seg">
+          <button className={view === 'analysis' ? 'on' : ''} onClick={() => setView('analysis')}>
+            Weekly analysis
+          </button>
+          <button className={view === 'log' ? 'on' : ''} onClick={() => setView('log')}>
+            Weight log
+          </button>
         </div>
       </header>
+
+      {view === 'analysis' ? (
+        <Analysis />
+      ) : (
+        <>
 
       <div className="tiles">
         <div className="card tile">
@@ -173,6 +188,8 @@ export default function WeightView() {
             ))}
           </div>
         </section>
+      )}
+        </>
       )}
     </div>
   )

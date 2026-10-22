@@ -91,3 +91,5 @@ export interface Recipe {
   tip: string
 }
 export const fetchRecipe = (body: { name: string; quantity?: string; diet?: string; allergies?: string[] }) => post<{ recipe: Recipe; videoUrl: string }>('/api/recipe', body)
+
+export const explainReport = (report: unknown) => post<{ text: string }>('/api/insights/explain', report)
