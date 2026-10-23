@@ -740,3 +740,38 @@ body::before {
 .plain-list li.row-between { display: flex; justify-content: space-between; gap: 12px; }
 .story { white-space: pre-wrap; line-height: 1.55; }
 .center { text-align: center; }
+
+/* entry details */
+.dialog-tabs { margin: 0 0 12px; align-self: flex-start; }
+.details { display: grid; gap: 14px; }
+.dsec { display: grid; gap: 8px; }
+.dsec h4 { margin: 0; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.splitbar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--card-2); }
+.splitbar i.p, .splitlegend .p b { background: var(--protein); color: inherit; }
+.splitbar i.c { background: var(--carbs); }
+.splitbar i.f { background: var(--fat); }
+.splitlegend { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.splitlegend b { background: none !important; font-variant-numeric: tabular-nums; }
+.splitlegend .p b { color: var(--protein); } .splitlegend .c b { color: var(--carbs); } .splitlegend .f b { color: var(--fat); }
+.dpills { display: flex; flex-wrap: wrap; gap: 6px; }
+.dpill { padding: 3px 10px; border-radius: 999px; font-size: 12px; background: var(--card-2); color: var(--muted); }
+.dpill.accent { background: var(--accent-soft); color: var(--accent-strong); }
+.dpill.warn { background: color-mix(in srgb, var(--carbs) 18%, var(--card)); color: var(--carbs); }
+.dlist { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; }
+.dlist li { padding-left: 18px; position: relative; }
+.dlist li::before { content: '•'; position: absolute; left: 4px; color: var(--muted); }
+.dlist.good li::before { content: '✓'; color: var(--good, #12a37a); left: 0; }
+.dlist.warn li::before { content: '!'; color: var(--carbs); left: 3px; font-weight: 700; }
+.ingredients { list-style: none; margin: 0; padding: 0; display: grid; }
+.ingredients li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.ingredients li:first-child { border-top: 0; }
+.lighter { display: grid; gap: 4px; padding: 12px; border-radius: 12px; background: var(--accent-soft); font-size: 14px; }
+.lighter b { color: var(--accent-strong); }
+.dstats { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
+.dstats div { background: var(--card-2); border-radius: 12px; padding: 10px; text-align: center; display: grid; gap: 2px; }
+.dstats b { font-variant-numeric: tabular-nums; }
+.dstats span { font-size: 11px; color: var(--muted); }
+.dnote { margin: 0; font-size: 14px; padding: 10px 12px; border-radius: 12px; background: var(--card-2); }
+.dnote.high { background: color-mix(in srgb, var(--carbs) 16%, var(--card)); }
+.dnote.plausible { background: color-mix(in srgb, var(--good, #12a37a) 14%, var(--card)); }
+.dsec.ask { padding: 14px; border-radius: 14px; border: 1px dashed var(--line); }

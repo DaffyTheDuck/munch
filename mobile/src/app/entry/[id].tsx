@@ -10,6 +10,7 @@ import { addCorrection, addEntry, deleteEntries, getEntry, updateEntry } from '@
 import { feel } from '@/lib/feel'
 import { Chip, IconButton, Press, PrimaryButton, SecondaryButton, T } from '@/components/ui'
 import { useToast } from '@/components/Toast'
+import { EntryDetails } from '@/components/EntryDetails'
 
 function Field({ label, value, onChange, numeric, flex = 1 }: { label: string; value: string; onChange: (v: string) => void; numeric?: boolean; flex?: number }) {
   const t = useTheme()
@@ -54,6 +55,7 @@ export default function EditEntry() {
   const [f, setF] = useState({ name: '', quantity: '', calories: '', protein: '', carbs: '', fat: '' })
   const [meal, setMeal] = useState<Meal>('snack')
   const [servings, setServings] = useState(1)
+  const [tab, setTab] = useState<'details' | 'edit'>('details')
   const [manual, setManual] = useState(false) // true once you type into the calorie or macro fields
 
   useEffect(() => {
@@ -121,9 +123,20 @@ export default function EditEntry() {
     <View style={{ flex: 1, backgroundColor: t.card }}>
       <KeyboardScroll keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <T variant="title">Edit {isFood ? 'food' : 'activity'}</T>
+          <T variant="title" numberOfLines={1} style={{ flex: 1, marginRight: 8 }}>
+            {tab === 'details' ? entry.name : `Edit ${isFood ? 'food' : 'activity'}`}
+          </T>
           <IconButton name="close" label="Close" onPress={() => router.back()} style={{ backgroundColor: t.card2, borderRadius: 22 }} />
         </View>
+
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Chip label="Details" icon="information-circle-outline" selected={tab === 'details'} onPress={() => { feel.select(); setTab('details') }} />
+          <Chip label="Edit" icon="create-outline" selected={tab === 'edit'} onPress={() => { feel.select(); setTab('edit') }} />
+        </View>
+
+        {tab === 'details' ? <EntryDetails entry={entry} /> : null}
+        {tab === 'edit' ? (
+          <>
 
         <Field label="Name" value={f.name} onChange={set('name')} />
         <Field label="Quantity" value={f.quantity} onChange={set('quantity')} />
@@ -179,6 +192,8 @@ export default function EditEntry() {
           <SecondaryButton title="Delete" icon="trash-outline" danger onPress={() => void remove()} />
           <PrimaryButton title="Save" onPress={() => void save()} style={{ flex: 1 }} />
         </View>
+          </>
+        ) : null}
       </KeyboardScroll>
     </View>
   )

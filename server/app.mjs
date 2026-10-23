@@ -4,6 +4,7 @@ import { coachStep } from './coach.mjs'
 import { planMeals } from './plan.mjs'
 import { makeRecipe } from './recipe.mjs'
 import { explainReport } from './insights.mjs'
+import { activityDetails, foodDetails } from './details.mjs'
 import { generate, providerInfo } from './llm.mjs'
 import { allowedEmails, authEnabled, requireAuth } from './auth.mjs'
 import { meterAI, usageHandler } from './usage.mjs'
@@ -35,7 +36,7 @@ export function createApp({ authKeys, usageStore = null } = {}) {
 
   // Everything else needs a signed-in Google account (when auth is enabled). Auth runs BEFORE any body is read.
   const auth = requireAuth({ keys: authKeys })
-  app.use(['/api/analyze', '/api/coach', '/api/plan', '/api/usage', '/api/recipe', '/api/insights', '/api/key'], auth)
+  app.use(['/api/analyze', '/api/coach', '/api/plan', '/api/usage', '/api/recipe', '/api/insights', '/api/food', '/api/activity', '/api/key'], auth)
 
   // Everything an AI route needs, in order: parse the body, optional own key, burst/parallel guard, daily allowance.
   // (The own-key step comes after the body is read: its request-scoped context must wrap the handler.)
@@ -90,6 +91,22 @@ export function createApp({ authKeys, usageStore = null } = {}) {
   app.post('/api/recipe', ...ai(1), async (req, res) => {
     try {
       res.json(await makeRecipe(req.body || {}))
+    } catch (e) {
+      sendError(res, e, { ownKey: Boolean(req.ownKey) })
+    }
+  })
+
+  // What is in a logged food / what an unfamiliar activity involves (cached on the device by the apps).
+  app.post('/api/food/details', ...ai(1), async (req, res) => {
+    try {
+      res.json(await foodDetails(req.body || {}))
+    } catch (e) {
+      sendError(res, e, { ownKey: Boolean(req.ownKey) })
+    }
+  })
+  app.post('/api/activity/details', ...ai(1), async (req, res) => {
+    try {
+      res.json(await activityDetails(req.body || {}))
     } catch (e) {
       sendError(res, e, { ownKey: Boolean(req.ownKey) })
     }

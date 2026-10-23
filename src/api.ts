@@ -93,3 +93,21 @@ export interface Recipe {
 export const fetchRecipe = (body: { name: string; quantity?: string; diet?: string; allergies?: string[] }) => post<{ recipe: Recipe; videoUrl: string }>('/api/recipe', body)
 
 export const explainReport = (report: unknown) => post<{ text: string }>('/api/insights/explain', report)
+
+export interface FoodDetails {
+  summary: string
+  ingredients: { item: string; amount: string }[]
+  nutrients: { name: string; note: string }[]
+  benefits: string[]
+  watchouts: string[]
+  lighter: string
+}
+export interface ActivityDetails {
+  summary: string
+  intensity: 'light' | 'moderate' | 'vigorous'
+  muscles: string[]
+  benefits: string[]
+  tips: string[]
+}
+export const fetchFoodDetails = (b: { name: string; quantity: string; calories: number; protein: number; carbs: number; fat: number }) => post<{ details: FoodDetails }>('/api/food/details', b)
+export const fetchActivityDetails = (b: { name: string; quantity: string; calories: number }) => post<{ details: ActivityDetails }>('/api/activity/details', b)

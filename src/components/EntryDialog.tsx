@@ -3,10 +3,12 @@ import { addCorrection, db, deleteEntries } from '../db'
 import { MEALS } from '../util'
 import type { Entry, Meal } from '../types'
 import Icon from './Icon'
+import EntryDetails from './EntryDetails'
 import { useToast } from './Toast'
 
 export default function EntryDialog({ entry, onClose }: { entry: Entry; onClose: () => void }) {
   const toast = useToast()
+  const [tab, setTab] = useState<'details' | 'edit'>('details')
   const [f, setF] = useState({
     name: entry.name,
     quantity: entry.quantity,
@@ -58,12 +60,23 @@ export default function EntryDialog({ entry, onClose }: { entry: Entry; onClose:
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog" role="dialog" aria-modal="true" aria-label="Edit entry">
         <div className="dialog-head">
-          <h2>Edit {isFood ? 'food' : 'activity'}</h2>
+          <h2>{tab === 'details' ? entry.name : `Edit ${isFood ? 'food' : 'activity'}`}</h2>
           <button className="ghost icon-btn" onClick={onClose} aria-label="Close">
             <Icon name="x" />
           </button>
         </div>
+        <div className="seg dialog-tabs">
+          <button className={tab === 'details' ? 'on' : ''} onClick={() => setTab('details')}>
+            Details
+          </button>
+          <button className={tab === 'edit' ? 'on' : ''} onClick={() => setTab('edit')}>
+            Edit
+          </button>
+        </div>
         {entry.photo && <img className="dialog-photo" src={entry.photo} alt="" />}
+        {tab === 'details' && <EntryDetails entry={entry} />}
+        {tab === 'edit' && (
+        <>
         <label className="fld">
           <span>Name</span>
           <input value={f.name} onChange={(e) => set('name', e.target.value)} autoFocus />
@@ -105,6 +118,8 @@ export default function EntryDialog({ entry, onClose }: { entry: Entry; onClose:
               <input type="number" inputMode="numeric" value={f.fat} onChange={(e) => set('fat', e.target.value)} />
             </label>
           </div>
+        )}
+        </>
         )}
         <div className="dialog-actions">
           <button className="btn danger" onClick={remove}>

@@ -117,3 +117,21 @@ export const fetchRecipe = (body: { name: string; quantity?: string; diet?: stri
   request<{ recipe: Recipe; videoUrl: string }>('/api/recipe', body, 60000)
 
 export const explainReport = (report: unknown) => request<{ text: string }>('/api/insights/explain', report, 60000)
+
+export interface FoodDetails {
+  summary: string
+  ingredients: { item: string; amount: string }[]
+  nutrients: { name: string; note: string }[]
+  benefits: string[]
+  watchouts: string[]
+  lighter: string
+}
+export interface ActivityDetails {
+  summary: string
+  intensity: 'light' | 'moderate' | 'vigorous'
+  muscles: string[]
+  benefits: string[]
+  tips: string[]
+}
+export const fetchFoodDetails = (b: { name: string; quantity: string; calories: number; protein: number; carbs: number; fat: number }) => request<{ details: FoodDetails }>('/api/food/details', b, 60000)
+export const fetchActivityDetails = (b: { name: string; quantity: string; calories: number }) => request<{ details: ActivityDetails }>('/api/activity/details', b, 60000)

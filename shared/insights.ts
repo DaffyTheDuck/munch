@@ -153,7 +153,7 @@ function overlap(a: string, b: string) {
   return hit / Math.min(A.size, B.size)
 }
 
-function catalogMatch(name: string): Food | null {
+export function catalogMatch(name: string): Food | null {
   let best: { f: Food; s: number } | null = null
   for (const f of CATALOG) {
     const s = overlap(name, f.name)
