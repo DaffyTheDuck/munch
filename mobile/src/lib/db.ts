@@ -108,6 +108,12 @@ export function bump(fromLocalEdit = true) {
   if (fromLocalEdit) localListeners.forEach((l) => l())
 }
 
+/** Runs `cb` after any change to the data, whether from this phone or applied from the cloud. */
+export function onDataChange(cb: () => void) {
+  listeners.add(cb)
+  return () => void listeners.delete(cb)
+}
+
 // Re-runs `fn` whenever anything is written, so screens stay in sync without manual refresh.
 export function useLive<T>(fn: () => Promise<T>, deps: unknown[], initial: T): T {
   const [data, setData] = useState<T>(initial)

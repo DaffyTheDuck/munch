@@ -6,12 +6,13 @@ import { useFonts, DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold, DMSa
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { useTheme } from '@/theme'
-import { getDb } from '@/lib/db'
+import { getDb, onDataChange } from '@/lib/db'
 import { ToastProvider } from '@/components/Toast'
 import { UsageWatcher } from '@/components/UsageWatcher'
 import { SessionProvider, useSession } from '@/lib/session'
 import { LoginScreen } from '@/components/LoginScreen'
-import { View } from 'react-native'
+import { AppState, View } from 'react-native'
+import { refreshWidgets } from '@/widgets/refresh'
 import { applyTheme, loadTheme } from '@/lib/themePref'
 
 SplashScreen.preventAutoHideAsync()
@@ -47,6 +48,18 @@ export default function RootLayout() {
 
   useEffect(() => {
     void loadTheme().then(applyTheme) // the light/dark choice from Settings
+  }, [])
+
+  // Keep the home-screen widgets current: after any change to the data, and when the app comes to the front
+  // (which also catches the date rolling over).
+  useEffect(() => {
+    refreshWidgets(0)
+    const off = onDataChange(() => refreshWidgets())
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && refreshWidgets(0))
+    return () => {
+      off()
+      sub.remove()
+    }
   }, [])
 
   useEffect(() => {

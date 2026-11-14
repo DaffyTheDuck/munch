@@ -56,7 +56,50 @@
         }
       ],
       "expo-status-bar",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "MunchCalories",
+              "label": "Munch · Calories left",
+              "description": "Calories left today and your progress",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "previewImage": "./assets/widget-preview/calories.png",
+              "resizeMode": "none",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "MunchToday",
+              "label": "Munch · Today",
+              "description": "Calories left plus protein, carbs and fat",
+              "minWidth": "250dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "previewImage": "./assets/widget-preview/today.png",
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "MunchQuickLog",
+              "label": "Munch · Quick log",
+              "description": "Tap to log what you ate",
+              "minWidth": "250dp",
+              "minHeight": "55dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 1,
+              "previewImage": "./assets/widget-preview/quicklog.png",
+              "resizeMode": "horizontal",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ]
     ],
     "extra": {
       "router": {},

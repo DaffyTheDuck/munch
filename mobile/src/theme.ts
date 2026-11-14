@@ -51,6 +51,9 @@ const dark: typeof light = {
 
 export type Theme = typeof light
 
+/** Both palettes, for places that cannot use the hook (home-screen widgets draw light and dark versions). */
+export const palettes = { light, dark }
+
 export function useTheme(): Theme {
   return useColorScheme() === 'dark' ? dark : light
 }

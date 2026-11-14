@@ -56,10 +56,23 @@ export default function DayView({ date, setDate, onGoals }: { date: string; setD
   const [phase, setPhase] = useState(0)
   const [error, setError] = useState('')
   const [note, setNote] = useState('')
+  // The assistant's "assuming…" note is a hint, not a permanent label: it fades after a few seconds,
+  // goes as soon as you start typing the next item, and can be dismissed with a click.
+  useEffect(() => {
+    if (!note) return
+    const id = setTimeout(() => setNote(''), 8000)
+    return () => clearTimeout(id)
+  }, [note])
   useEffect(() => {
     void fetchUsage() // keeps the shared allowance state (and its low-balance warning) current
   }, [])
   const [hint, setHint] = useState('')
+  useEffect(() => {
+    if (text) {
+      setNote('')
+      setError('')
+    }
+  }, [text])
   const [editing, setEditing] = useState<Entry | null>(null)
   const [dragging, setDragging] = useState(false)
   const [dragId, setDragId] = useState<number | null>(null)
@@ -485,7 +498,11 @@ export default function DayView({ date, setDate, onGoals }: { date: string; setD
               <kbd>Enter</kbd> to log · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line · paste or drop a photo · <kbd>/</kbd> to focus
             </div>
             {error && <div className="msg error">{error}</div>}
-            {note && !error && <div className="msg">{note}</div>}
+            {note && !error && (
+              <button type="button" className="msg dismissible" onClick={() => setNote('')} title="Dismiss">
+                {note}
+              </button>
+            )}
           </section>
 
           {recent.length > 0 && (

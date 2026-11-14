@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import Animated, { useAnimatedStyle, useSharedValue, withTiming, Easing } from 'react-native-reanimated'
 import { MEALS, addDays, autoMeal, longDate, prettyDate, todayStr } from '@shared/dates'
@@ -81,12 +81,34 @@ export default function Today() {
   const [phase, setPhase] = useState(0)
   const [error, setError] = useState('')
   const [note, setNote] = useState('')
+  // The assistant's "assuming…" note is a hint, not a permanent label: it fades after a few seconds,
+  // goes as soon as you start typing the next item, and can be dismissed with a tap.
+  useEffect(() => {
+    if (!note) return
+    const id = setTimeout(() => setNote(''), 8000)
+    return () => clearTimeout(id)
+  }, [note])
   const [composerH, setComposerH] = useState(160)
+  useEffect(() => {
+    if (text) {
+      setNote('')
+      setError('')
+    }
+  }, [text])
   useEffect(() => {
     void fetchUsage() // keeps the shared allowance state (and its low-balance warning) current
   }, [])
 
   const inputRef = useRef<TextInput>(null)
+
+  // The "What did you eat?" home-screen widget opens the app with ?focus=1: jump straight into the food box.
+  const { focus } = useLocalSearchParams<{ focus?: string }>()
+  useEffect(() => {
+    if (!focus) return
+    const id = setTimeout(() => inputRef.current?.focus(), 450)
+    router.setParams({ focus: '' })
+    return () => clearTimeout(id)
+  }, [focus])
   const composerWrap = useRef<View>(null)
   const lift = useKeyboardLift(composerWrap)
 
@@ -465,9 +487,11 @@ export default function Today() {
         style={{ position: 'absolute', left: 0, right: 0, bottom: lift, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 6 }}
       >
         {(error || note) && !busy ? (
-          <T variant="caption" color={error ? 'over' : 'muted'} style={{ paddingHorizontal: 8, paddingBottom: 6 }}>
-            {error || note}
-          </T>
+          <Press onPress={() => { setNote(''); setError('') }} accessibilityLabel="Dismiss message" scale={0.99}>
+            <T variant="caption" color={error ? 'over' : 'muted'} style={{ paddingHorizontal: 8, paddingBottom: 6 }}>
+              {error || note}
+            </T>
+          </Press>
         ) : null}
         <Composer
           ref={inputRef}

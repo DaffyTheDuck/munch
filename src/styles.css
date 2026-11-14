@@ -775,3 +775,6 @@ body::before {
 .dnote.high { background: color-mix(in srgb, var(--carbs) 16%, var(--card)); }
 .dnote.plausible { background: color-mix(in srgb, var(--good, #12a37a) 14%, var(--card)); }
 .dsec.ask { padding: 14px; border-radius: 14px; border: 1px dashed var(--line); }
+
+.msg.dismissible { display: block; width: 100%; text-align: left; cursor: pointer; border: 0; font: inherit; animation: fadeIn .2s ease; }
+.msg.dismissible::after { content: '×'; float: right; opacity: .5; margin-left: 8px; }
