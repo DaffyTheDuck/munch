@@ -93,6 +93,7 @@ async function gemini({ system, messages, json, model, maxTokens, fast }) {
 }
 
 async function anthropic({ system, messages, model, maxTokens }) {
+  if (!model) throw new Error('ANTHROPIC_MODEL is not set')
   const mapped = messages.map((m) => {
     const content = []
     if (m.image) {
